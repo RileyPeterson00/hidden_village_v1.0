@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom';
 
-// Firebase mocks applied via moduleNameMapper in jest.config.js
+// Auto-mock Firebase modules (configured in jest.config.js moduleNameMapper)
+// Note: jest.mock() with factory causes circular resolution; moduleNameMapper is required
 
 // PixiJS mocks
 global.PIXI = {
