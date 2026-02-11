@@ -1,5 +1,7 @@
 import '@testing-library/jest-dom';
 
+// Firebase mocks applied via moduleNameMapper in jest.config.js
+
 // PixiJS mocks
 global.PIXI = {
   Application: jest.fn().mockImplementation(() => ({
