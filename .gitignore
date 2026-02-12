@@ -9,3 +9,8 @@ static
 .env
 src/.DS_Store
 .firebase
+
+# Testing
+coverage
+.jest
+*.log
