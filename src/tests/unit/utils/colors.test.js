@@ -1,4 +1,4 @@
-import { white, black } from '../../../../utils/colors';
+import { white, black } from '../../../utils/colors';
 
 describe('Color Utilities', () => {
   test('white color is defined', () => {
@@ -9,28 +9,29 @@ describe('Color Utilities', () => {
     expect(black).toBeDefined();
   });
 
-  test('white is a string', () => {
-    expect(typeof white).toBe('string');
+  test('white is a number', () => {
+    expect(typeof white).toBe('number');
   });
 
-  test('black is a string', () => {
-    expect(typeof black).toBe('string');
+  test('black is a number', () => {
+    expect(typeof black).toBe('number');
   });
 
-  test('white has valid hex format', () => {
-    expect(white).toMatch(/^#[0-9A-F]{6}$/i);
+  test('white has correct hex value', () => {
+    expect(white).toBe(0xffffff);
   });
 
-  test('black has valid hex format', () => {
-    expect(black).toMatch(/^#[0-9A-F]{6}$/i);
+  test('black has correct hex value', () => {
+    expect(black).toBe(0x000000);
   });
 
   test('white and black are different', () => {
     expect(white).not.toBe(black);
   });
 
-  test('colors are not empty strings', () => {
-    expect(white.length).toBeGreaterThan(0);
-    expect(black.length).toBeGreaterThan(0);
+  test('colors are valid hex numbers', () => {
+    expect(white).toBeGreaterThanOrEqual(0);
+    expect(black).toBeGreaterThanOrEqual(0);
+    expect(white).toBeLessThanOrEqual(0xffffff);
   });
 });
