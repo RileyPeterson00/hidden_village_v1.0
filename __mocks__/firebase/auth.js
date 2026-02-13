@@ -16,9 +16,21 @@ const onAuthStateChanged = jest.fn((auth, callback) => {
 const setPersistence = jest.fn(() => Promise.resolve());
 const browserSessionPersistence = { _name: 'SESSION' };
 
+// Sign-in/sign-up/sign-out (SignIn.js, userDatabase.js, Story.js, NewUserModule.js, CreateAdminForOrg.mjs)
+const createUserWithEmailAndPassword = jest.fn(() =>
+  Promise.resolve({ user: FIXTURE_USER })
+);
+const signInWithEmailAndPassword = jest.fn(() =>
+  Promise.resolve({ user: FIXTURE_USER })
+);
+const signOut = jest.fn(() => Promise.resolve());
+
 module.exports = {
   getAuth,
   onAuthStateChanged,
   setPersistence,
   browserSessionPersistence,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
 };

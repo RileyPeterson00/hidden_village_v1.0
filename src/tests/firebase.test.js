@@ -1,9 +1,9 @@
 /**
  * Firebase Mocks Smoke Test
- * Verifies Firebase mocks can be imported and used without errors
+ * Verifies mocks work with existing code - can import and use without errors
  */
 
-describe('Firebase Mocks Smoke Test', () => {
+describe('Firebase Mocks', () => {
   it('should import and use all Firebase modules without errors', async () => {
     const { initializeApp } = require('firebase/app');
     const { getAuth, onAuthStateChanged, setPersistence, browserSessionPersistence } = require('firebase/auth');
