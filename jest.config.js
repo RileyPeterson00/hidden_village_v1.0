@@ -8,4 +8,5 @@ module.exports = {
     '^firebase/database$': '<rootDir>/__mocks__/firebase/database.js',
     '^firebase/storage$': '<rootDir>/__mocks__/firebase/storage.js',
   },
+  roots: ['<rootDir>/src/tests'], // only look into the tests directory for tests
 };
