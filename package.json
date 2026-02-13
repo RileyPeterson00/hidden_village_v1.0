@@ -6,6 +6,8 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.{js,jsx}\"",
     "lint": "eslint \"src/**/*.{js,jsx}\" --quiet",
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch",
     "dev": "parcel src/index.html",
     "build": "parcel build src/index.html --public-url ./",
     "deploy": "npm run build && firebase deploy",
