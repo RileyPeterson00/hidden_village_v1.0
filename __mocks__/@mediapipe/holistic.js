@@ -1,23 +1,26 @@
-// __mocks__/@mediapipe/holistic.js
-import mockPoseData from '../mockPoseData.js';
+import mockPoseData from '../../src/tests/fixtures/mockPoseData';
 
 export class Holistic {
-  constructor(options) {
+  constructor(options = {}) {
     this.options = options;
     this._onResults = null;
-  }
 
-  setOptions = jest.fn();
-  send = jest.fn(async () => Promise.resolve());
+    // define spyable methods upfront
+    this.setOptions = jest.fn((opts) => {
+      this.options = { ...this.options, ...opts };
+    });
+
+    this.send = jest.fn(async ({ image } = {}) => Promise.resolve());
+  }
 
   set onResults(cb) {
     this._onResults = cb;
   }
+
   get onResults() {
     return this._onResults;
   }
 
-  // **static method must be declared properly**
   static __triggerResults(instance, data = mockPoseData) {
     if (instance && typeof instance._onResults === 'function') {
       instance._onResults(data);
