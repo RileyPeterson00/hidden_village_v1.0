@@ -1,28 +1,28 @@
-// Import AFTER manual mock is in place
-import { Holistic } from "@mediapipe/holistic";
+  jest.mock('@mediapipe/holistic');
+  import { Holistic } from '@mediapipe/holistic';
+  import mockPoseData from '../../fixtures/mockPoseData.js';
 
-describe("Holistic mock", () => {
-  it("stores callback and triggers results", () => {
-    const holistic = new Holistic();
+  describe('Holistic - mock behavior', () => {
+    it('calls onResults with mock data', () => {
+      const resultsHandler = jest.fn();
 
-    holistic.setOptions({ modelComplexity: 1 });
-    expect(holistic.setOptions).toHaveBeenCalledWith({ modelComplexity: 1 });
+      const holistic = new Holistic({});
+      holistic.onResults = resultsHandler;
 
-    holistic.send({ image: "fakeImage" });
-    expect(holistic.send).toHaveBeenCalledWith({ image: "fakeImage" });
+      // simulate receiving results
+      Holistic.__triggerResults(holistic);
 
-    const callback = jest.fn();
-    holistic.onResults(callback);
+      expect(resultsHandler).toHaveBeenCalled();
+      expect(resultsHandler).toHaveBeenCalledWith(mockPoseData);
+      expect(resultsHandler.mock.calls[0][0].poseLandmarks).toBeDefined();
+    });
 
-    const fakeResults = { poseLandmarks: [{ x: 0, y: 0 }] };
-    Holistic.__triggerResults(fakeResults);
+    it('setOptions is called correctly', () => {
+      const holistic = new Holistic({});
+      holistic.setOptions({ minDetectionConfidence: 0.5 });
 
-    expect(callback).toHaveBeenCalledWith(fakeResults);
-    expect(callback).toHaveBeenCalledTimes(1);
+      expect(holistic.setOptions).toHaveBeenCalledWith({
+        minDetectionConfidence: 0.5,
+      });
+    });
   });
-
-  it("does nothing if __triggerResults is called without onResults", () => {
-    const holistic = new Holistic();
-    expect(() => Holistic.__triggerResults({})).not.toThrow();
-  });
-});

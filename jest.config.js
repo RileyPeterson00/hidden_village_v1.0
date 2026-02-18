@@ -7,6 +7,7 @@ module.exports = {
     '^firebase/auth$': '<rootDir>/__mocks__/firebase/auth.js',
     '^firebase/database$': '<rootDir>/__mocks__/firebase/database.js',
     '^firebase/storage$': '<rootDir>/__mocks__/firebase/storage.js',
+    '^@mediapipe/holistic$': '<rootDir>/__mocks__/@mediapipe/holistic.js',
   },
   roots: ['<rootDir>/src/tests'], // only look into the tests directory for tests
 };
