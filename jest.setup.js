@@ -29,3 +29,14 @@ global.PIXI = {
     endFill: jest.fn(),
   })),
 };
+
+jest.mock('@inlet/react-pixi', () => ({
+  Stage: ({ children }) => <div>{children}</div>,
+  Graphics: ({ draw }) => {
+    if (draw) draw({}); // simulate draw call
+    return <div />;
+  },
+  Text: ({ text }) => <div>{text}</div>,
+  PixiComponent: () => () => <div />,
+  useApp: () => ({}),
+}));
