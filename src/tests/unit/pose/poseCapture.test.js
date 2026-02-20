@@ -1,34 +1,70 @@
+/**
+ * PoseCapture tests use a MediaPipe Holistic mock so no camera is required.
+ * - Mock is defined inline below so the test and component share the same Holistic instance.
+ * - Trigger pose results with: Holistic.__triggerResults(holisticInstance, fixtureData)
+ * - Use fixtures from ../../fixtures/mockPoseData.js (e.g. mockRealisticTPose, mockBasicPose).
+ */
 import React from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { render, waitFor, act } from '@testing-library/react';
 import PoseCapture from '../../../components/PoseCapture';
-import { Holistic } from '@mediapipe/holistic';
+import { Holistic } from '@mediapipe/holistic/holistic';
 import { mockRealisticTPose } from '../../fixtures/mockPoseData';
+import { enrichLandmarks } from '../../../components/Pose/landmark_utilities';
 
-jest.mock('@mediapipe/holistic');
+// Inline MediaPipe Holistic mock so test and PoseCapture share one instance (avoids require cycles)
+const mockInstances = [];
+jest.mock('@mediapipe/holistic/holistic', () => {
+  class MockHolistic {
+    constructor() {
+      mockInstances.push(this);
+      this.setOptions = jest.fn();
+      this.send = jest.fn().mockResolvedValue(undefined);
+      this._onResults = null;
+      Object.defineProperty(this, 'onResults', {
+        set(cb) {
+          this._onResults = cb;
+        },
+        get() {
+          return (cb) => {
+            this._onResults = cb;
+          };
+        },
+        configurable: true,
+      });
+    }
+  }
+  const HolisticFn = jest.fn().mockImplementation((...args) => new MockHolistic(...args));
+  HolisticFn.__triggerResults = (instance, data) => {
+    if (instance && typeof instance._onResults === 'function') instance._onResults(data);
+  };
+  return { Holistic: HolisticFn, POSE_LANDMARKS: {}, FACEMESH_FACE_OVAL: [] };
+});
 jest.mock('../../../components/Pose/landmark_utilities', () => ({
-  enrichLandmarks: jest.fn((data) => ({
-    ...data,
-    enriched: true,
-  })),
+  enrichLandmarks: jest.fn((data) => ({ ...data, enriched: true })),
 }));
-
-jest.mock('../Background', () => () => (
+jest.mock('../../../components/Pose/index.js', () => {
+  const React = require('react');
+  return React.forwardRef((props, ref) => <div data-testid="pose" ref={ref} />);
+});
+jest.mock('../../../components/Background', () => () => (
   <div data-testid="background" />
 ));
 
-// Mock Camera globally
-global.Camera = jest.fn().mockImplementation(() => ({
-  start: jest.fn(),
-}));
-
 describe('PoseCapture', () => {
+  beforeEach(() => {
+    mockInstances.length = 0;
+    document.body.innerHTML = '';
+    const video = document.createElement('video');
+    video.className = 'input-video';
+    document.body.appendChild(video);
+  });
+
   it('initializes holistic and updates pose data on results', async () => {
-    const { container } = render(<PoseCapture />);
+    render(<PoseCapture />);
 
-    // Grab the Holistic instance created by the component
-    const holisticInstance = Holistic.mock.instances[0];
-
-    // Verify options were set
+    expect(Holistic).toHaveBeenCalled();
+    const holisticInstance = mockInstances[0] || Holistic.mock.instances[0];
+    expect(holisticInstance).toBeDefined();
     expect(holisticInstance.setOptions).toHaveBeenCalledWith(
       expect.objectContaining({
         modelComplexity: 1,
@@ -37,14 +73,12 @@ describe('PoseCapture', () => {
       })
     );
 
-    // Trigger pose results
-    Holistic.__triggerResults(holisticInstance, mockRealisticTPose);
+    act(() => {
+      Holistic.__triggerResults(holisticInstance, mockRealisticTPose);
+    });
 
     await waitFor(() => {
-      // After trigger, state should update and re-render
-      // We verify by checking that PoseGrab received enriched data
-      const poseGrab = container.querySelector('canvas');
-      expect(poseGrab).toBeInTheDocument();
+      expect(enrichLandmarks).toHaveBeenCalledWith(mockRealisticTPose);
     });
   });
 });

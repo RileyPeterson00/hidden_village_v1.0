@@ -8,6 +8,11 @@ module.exports = {
     '^firebase/database$': '<rootDir>/__mocks__/firebase/database.js',
     '^firebase/storage$': '<rootDir>/__mocks__/firebase/storage.js',
     '^@mediapipe/holistic$': '<rootDir>/__mocks__/@mediapipe/holistic.js',
+    '^@mediapipe/holistic/holistic$': '<rootDir>/__mocks__/@mediapipe/holistic.js',
+    '^@mediapipe/camera_utils$': '<rootDir>/__mocks__/@mediapipe/camera_utils.js',
+    '^pixi\\.js$': '<rootDir>/__mocks__/pixi.js',
+    '^@inlet/react-pixi$': '<rootDir>/__mocks__/@inlet/react-pixi.js',
+    '^@pixi/graphics$': '<rootDir>/__mocks__/@pixi/graphics.js',
   },
   roots: ['<rootDir>/src/tests'], // only look into the tests directory for tests
 };
