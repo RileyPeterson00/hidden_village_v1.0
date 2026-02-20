@@ -7,7 +7,7 @@ jest.mock('firebase/database');
 jest.mock('firebase/storage');
 
 // Auto-mock Mediapipe
-jest.mock('@mediapipe/holistic');
+
 
 // PixiJS mocks
 global.PIXI = {

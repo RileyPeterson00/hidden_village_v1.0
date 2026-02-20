@@ -1,6 +1,6 @@
-import mockPoseData from '../../src/tests/fixtures/mockPoseData';
+import { mockBasicPose } from '../../src/tests/fixtures/mockPoseData';
 
-export class Holistic {
+class Holistic {
   constructor(options = {}) {
     this.options = options;
     this._onResults = null;
@@ -21,9 +21,11 @@ export class Holistic {
     return this._onResults;
   }
 
-  static __triggerResults(instance, data = mockPoseData) {
+  static __triggerResults(instance, data = mockBasicPose) {
     if (instance && typeof instance._onResults === 'function') {
       instance._onResults(data);
     }
   }
 }
+ 
+module.exports = { Holistic };
