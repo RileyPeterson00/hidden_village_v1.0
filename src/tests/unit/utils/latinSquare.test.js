@@ -1,4 +1,4 @@
-import Latin from "../components/utilities/latin_square";
+import Latin from "../../../components/utilities/latin_square";
 
 test('Latin square has correct dimensions', () => {
   const latin = new Latin(4);
