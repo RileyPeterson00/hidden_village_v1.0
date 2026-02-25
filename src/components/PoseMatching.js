@@ -204,7 +204,7 @@ const PoseMatching = (props) => {
         setRepIndex(nextRep);
         setText(`Match pose ${nextRep + 1}.${nextSub + 1} on the left!`);
         setIsTransitioning(false);
-        console.log(`Advanced to rep ${nextRep}, sub ${nextSub}`);
+        // console.log(`Advanced to rep ${nextRep}, sub ${nextSub}`);
       }
     }, TRANSITION_DELAY);
   }, [
@@ -220,23 +220,23 @@ const PoseMatching = (props) => {
   ]);
 
   useEffect(() => {
-    if (isTransitioning || poseSimilarity.length === 0) return;
+    if (isTransitioning || completed || poseSimilarity.length === 0) return;
 
     const allSegmentsMatch = poseSimilarity.every((segment) => segment.similarityScore > currentTolerance);
 
     if (allSegmentsMatch) {
-      console.log(`Pose matched with tolerance: ${currentTolerance}`);
+      // console.log(`Pose matched with tolerance: ${currentTolerance}`);
       handlePoseMatch();
     }
   }, [poseSimilarity, currentTolerance, isTransitioning, handlePoseMatch]);
 
   if (posesToMatch.length === 0) {
-    console.warn('[PoseMatching] Returning null - posesToMatch.length is 0:', {
-      'posesToMatch': posesToMatch,
-      'posesToMatch.length': posesToMatch?.length,
-      'posesToMatch type': typeof posesToMatch,
-      'posesToMatch is array': Array.isArray(posesToMatch)
-    });
+    // console.warn('[PoseMatching] Returning null - posesToMatch.length is 0:', {
+    //   'posesToMatch': posesToMatch,
+    //   'posesToMatch.length': posesToMatch?.length,
+    //   'posesToMatch type': typeof posesToMatch,
+    //   'posesToMatch is array': Array.isArray(posesToMatch)
+    // });
     return null;
   }
 
