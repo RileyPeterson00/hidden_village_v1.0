@@ -50,6 +50,7 @@ const PoseMatching = (props) => {
   const [subPoseIndex, setSubPoseIndex] = useState(0); // 0..uniquePosesCount-1
   const [repIndex, setRepIndex] = useState(0); // 0..repetitions-1
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [text, setText] = useState(() =>
     singleMatchPerPose
       ? `Match pose ${repIndex + 1}.${subPoseIndex + 1} on the left!`
@@ -135,7 +136,7 @@ const PoseMatching = (props) => {
 
   // similarity calculation
   useEffect(() => {
-    if (isTransitioning || !poseMatchData.length || !props.poseData.poseLandmarks) {
+    if (isTransitioning || completed || !poseMatchData.length || !props.poseData.poseLandmarks) {
       setPoseSimilarity([{ similarityScore: 0 }]);
       return;
     }
@@ -153,7 +154,7 @@ const PoseMatching = (props) => {
     });
 
     setPoseSimilarity(similarityScores);
-  }, [props.poseData, poseMatchData, playerColumn, isTransitioning]);
+  }, [props.poseData, poseMatchData, playerColumn, isTransitioning, completed]);
 
   const handlePoseMatch = useCallback(() => {
     if (gameID) {
@@ -174,6 +175,7 @@ const PoseMatching = (props) => {
       if (!singleMatchPerPose) {
         const nextIndex = linearPoseIndex + 1;
         if (nextIndex >= posesToMatch.length) {
+          setCompleted(true);
           setIsTransitioning(false);
           onComplete();
         } else {
@@ -194,6 +196,7 @@ const PoseMatching = (props) => {
       }
 
       if (nextRep >= Math.max(1, Math.floor(repetitions))) {
+        setCompleted(true);
         setIsTransitioning(false);
         onComplete();
       } else {
