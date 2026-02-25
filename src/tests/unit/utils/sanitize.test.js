@@ -1,4 +1,4 @@
-import { sanitizeValue, stripUndefined } from "../utils/sanitize";
+import { sanitizeValue, stripUndefined } from "../../../utils/sanitize";
 
 test('sanitize.js functioning properly', () => {
     // sanitizeValue
