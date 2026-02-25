@@ -6,14 +6,12 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.{js,jsx}\"",
     "lint": "eslint \"src/**/*.{js,jsx}\" --quiet",
-    "test": "jest --passWithNoTests",
+    "test": "jest",
     "test:watch": "jest --watch",
     "dev": "parcel src/index.html",
     "build": "parcel build src/index.html --public-url ./",
     "deploy": "npm run build && firebase deploy",
     "docs": "jsdoc -c jsdoc.conf.json",
-    "test": "jest",
-    "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:verbose": "jest --verbose"
   },
@@ -21,6 +19,7 @@
   "license": "MIT",
   "devDependencies": {
     "@babel/preset-env": "^7.16.4",
+    "@babel/preset-react": "^7.28.5",
     "@parcel/optimizer-data-url": "^2.0.1",
     "@parcel/reporter-bundle-analyzer": "^2.0.1",
     "@parcel/transformer-inline-string": "^2.0.1",
@@ -30,6 +29,7 @@
     "@testing-library/react": "^12.1.5",
     "@testing-library/user-event": "^14.5.1",
     "autoprefixer": "^10.3.6",
+    "baseline-browser-mapping": "^2.10.0",
     "buffer": "^6.0.3",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",

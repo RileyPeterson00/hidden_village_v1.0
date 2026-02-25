@@ -19,7 +19,7 @@ export default class Latin {
       .map(() => Array(this.size).fill(0));
 
     if (this.create(0, 0)) {
-      console.table(this.square);
+      // console.table(this.square);
     }
   }
 
