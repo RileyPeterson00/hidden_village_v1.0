@@ -50,6 +50,7 @@ const PoseMatching = (props) => {
   const [subPoseIndex, setSubPoseIndex] = useState(0); // 0..uniquePosesCount-1
   const [repIndex, setRepIndex] = useState(0); // 0..repetitions-1
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [text, setText] = useState(() =>
     singleMatchPerPose
       ? `Match pose ${repIndex + 1}.${subPoseIndex + 1} on the left!`
@@ -135,7 +136,7 @@ const PoseMatching = (props) => {
 
   // similarity calculation
   useEffect(() => {
-    if (isTransitioning || !poseMatchData.length || !props.poseData.poseLandmarks) {
+    if (isTransitioning || completed || !poseMatchData.length || !props.poseData.poseLandmarks) {
       setPoseSimilarity([{ similarityScore: 0 }]);
       return;
     }
@@ -153,7 +154,7 @@ const PoseMatching = (props) => {
     });
 
     setPoseSimilarity(similarityScores);
-  }, [props.poseData, poseMatchData, playerColumn, isTransitioning]);
+  }, [props.poseData, poseMatchData, playerColumn, isTransitioning, completed]);
 
   const handlePoseMatch = useCallback(() => {
     if (gameID) {
@@ -174,6 +175,7 @@ const PoseMatching = (props) => {
       if (!singleMatchPerPose) {
         const nextIndex = linearPoseIndex + 1;
         if (nextIndex >= posesToMatch.length) {
+          setCompleted(true);
           setIsTransitioning(false);
           onComplete();
         } else {
@@ -194,6 +196,7 @@ const PoseMatching = (props) => {
       }
 
       if (nextRep >= Math.max(1, Math.floor(repetitions))) {
+        setCompleted(true);
         setIsTransitioning(false);
         onComplete();
       } else {
@@ -201,7 +204,7 @@ const PoseMatching = (props) => {
         setRepIndex(nextRep);
         setText(`Match pose ${nextRep + 1}.${nextSub + 1} on the left!`);
         setIsTransitioning(false);
-        console.log(`Advanced to rep ${nextRep}, sub ${nextSub}`);
+        // console.log(`Advanced to rep ${nextRep}, sub ${nextSub}`);
       }
     }, TRANSITION_DELAY);
   }, [
@@ -217,23 +220,23 @@ const PoseMatching = (props) => {
   ]);
 
   useEffect(() => {
-    if (isTransitioning || poseSimilarity.length === 0) return;
+    if (isTransitioning || completed || poseSimilarity.length === 0) return;
 
     const allSegmentsMatch = poseSimilarity.every((segment) => segment.similarityScore > currentTolerance);
 
     if (allSegmentsMatch) {
-      console.log(`Pose matched with tolerance: ${currentTolerance}`);
+      // console.log(`Pose matched with tolerance: ${currentTolerance}`);
       handlePoseMatch();
     }
   }, [poseSimilarity, currentTolerance, isTransitioning, handlePoseMatch]);
 
   if (posesToMatch.length === 0) {
-    console.warn('[PoseMatching] Returning null - posesToMatch.length is 0:', {
-      'posesToMatch': posesToMatch,
-      'posesToMatch.length': posesToMatch?.length,
-      'posesToMatch type': typeof posesToMatch,
-      'posesToMatch is array': Array.isArray(posesToMatch)
-    });
+    // console.warn('[PoseMatching] Returning null - posesToMatch.length is 0:', {
+    //   'posesToMatch': posesToMatch,
+    //   'posesToMatch.length': posesToMatch?.length,
+    //   'posesToMatch type': typeof posesToMatch,
+    //   'posesToMatch is array': Array.isArray(posesToMatch)
+    // });
     return null;
   }
 
