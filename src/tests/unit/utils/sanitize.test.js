@@ -1,13 +1,27 @@
 import { sanitizeValue, stripUndefined } from "../../../utils/sanitize";
 
-test('sanitize.js functioning properly', () => {
-    // sanitizeValue
+test('sanitizeValue returns empty string for null', () => {
     expect(sanitizeValue(null)).toBe('');
-    expect(sanitizeValue('undefined')).toBe('');
-    expect(sanitizeValue('Testing!')).toBe('Testing!');
+});
 
-    // stripUndefined
+test('sanitizeValue returns empty string for "undefined" string', () => {
+    expect(sanitizeValue('undefined')).toBe('');
+});
+
+test('sanitizeValue returns original string for valid input', () => {
+    expect(sanitizeValue('Testing!')).toBe('Testing!');
+});
+
+test('stripUndefined returns empty object when called with no arguments', () => {
     expect(stripUndefined()).toEqual({});
+});
+
+test('stripUndefined returns empty object when given empty object', () => {
     expect(stripUndefined({})).toEqual({});
-    expect(stripUndefined({'Test1': 'Wow', 'MyNullEntry': null})).toEqual({'Test1': 'Wow'});
+});
+
+test('stripUndefined removes keys with null values', () => {
+    expect(
+        stripUndefined({ Test1: 'Wow', MyNullEntry: null })
+    ).toEqual({ Test1: 'Wow' });
 });
