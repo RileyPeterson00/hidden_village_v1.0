@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Integration Tests: Game Flow
  *
  * Covers the full game loop at the logic layer:
@@ -72,7 +72,9 @@ const completeChapter = (service) => {
   service.send('COMPLETE'); // chapter.outro -> chapter_transition -> next state
 };
 
-// ─── GameMachine: full game loop ─────────────────────────────────────────────
+// ============================================================
+// GameMachine: full game loop
+// ============================================================
 
 describe('GameMachine - full game loop without intervention', () => {
   test('machine reaches ending after completing all chapters', () => {
@@ -123,7 +125,9 @@ describe('GameMachine - full game loop without intervention', () => {
   });
 });
 
-// ─── GameMachine: intervention ────────────────────────────────────────────────
+// ============================================================
+// GameMachine: intervention
+// ============================================================
 
 describe('GameMachine - intervention trigger and resume', () => {
   test('intervention fires at the configured conjecture index', () => {
@@ -199,7 +203,9 @@ describe('GameMachine - intervention trigger and resume', () => {
   });
 });
 
-// ─── Latin square: validity ───────────────────────────────────────────────────
+// ============================================================
+// Latin square: validity
+// ============================================================
 
 describe('Latin square - valid ordering structure', () => {
   test('produces an N×N square for size 3', () => {
@@ -234,7 +240,9 @@ describe('Latin square - valid ordering structure', () => {
   });
 });
 
-// ─── Latin square: conjecture ordering ───────────────────────────────────────
+// ============================================================
+// Latin square: conjecture ordering
+// ============================================================
 
 describe('Latin square - conjecture ordering via reorder()', () => {
   const conjectures = ['A', 'B', 'C', 'D'];
@@ -279,7 +287,9 @@ describe('Latin square - conjecture ordering via reorder()', () => {
   });
 });
 
-// ─── PoseMatching -> GameMachine integration ──────────────────────────────────
+// ============================================================
+// PoseMatching -> GameMachine integration
+// ============================================================
 
 describe('PoseMatching -> GameMachine integration', () => {
   let service;
