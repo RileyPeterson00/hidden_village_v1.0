@@ -62,6 +62,41 @@ All Firebase writes are intercepted by `__mocks__/firebase/database.js`. No emul
 
 ---
 
+### `game-flow.test.js`
+
+**Purpose:** Verify the full game loop at the logic layer — chapter progression, intervention, conjecture ordering, and the connection between pose matching and game state.
+
+**What is real:**
+- `GameMachine` — real XState state machine, driven with `interpret()`
+- `Latin` — real Latin square generator
+- `reorder()` — replicated from `Game.js` (pure function, no PixiJS dependency)
+- `PoseMatching` — real component rendered for integration tests (pose canvas mocked)
+
+**What is mocked:**
+- `firebase/database.js` — no real network calls
+- `components/Pose/index.js` — PixiJS canvas replaced with a `<div>`
+- `components/utilities/ErrorBoundary.js` — thin pass-through wrapper
+- `components/Pose/pose_drawing_utilities` — `segmentSimilarity` and `matchSegmentToLandmarks` replaced with `jest.fn()` so tests can deterministically trigger or suppress pose matches
+
+**Tests cover:**
+
+| Ticket task | How tested |
+|---|---|
+| Chapter starts / pose matching begins | Verified via PoseMatching rendering without error when wired to a live GameMachine |
+| Correct conjecture for each chapter | `currentConjectureIdx` mapped to Latin-ordered array at each chapter step |
+| Pose match → state machine advances | `segmentSimilarity` returns 100 → `onComplete` fires → `service.send('NEXT')` → machine exits `intervention` |
+| No match → machine stays put | `segmentSimilarity` returns 0 → `onComplete` never called → machine remains in `intervention` |
+| Intervention fires at correct index | Verified with multiple conjecture counts and `conjectureIdxToIntervention` values |
+| Game resumes after intervention | `service.send('NEXT')` → machine returns to `chapter` state |
+| Conjecture ordering validity | Latin square row/column uniqueness + determinism |
+| `reorder` correctness | Full permutation check per condition row |
+
+**Why Chapter.js and Game.js are not rendered:**
+
+Both components import `@inlet/react-pixi` at the module level, which requires a real WebGL/Canvas context. Jest runs in jsdom which does not provide WebGL. Any attempt to render these components crashes the test runner before a single assertion runs. The integration here tests the **logic layer** (state machine + ordering) and the **PoseMatching component** (which has no PixiJS imports at the top level), not the rendering layer.
+
+---
+
 ## Adding New Integration Tests
 
 1. Create a new file: `src/tests/integration/your-feature.test.js`
@@ -69,3 +104,4 @@ All Firebase writes are intercepted by `__mocks__/firebase/database.js`. No emul
 3. Only mock external boundaries: Firebase, network calls, heavy UI components
 4. Clear mock call counts in `beforeEach(() => { jest.clearAllMocks(); })`
 5. Assert on mock call arguments to verify data reached the boundary correctly
+6. If the component uses `setTimeout` (e.g. transition delays), add `jest.useFakeTimers()` at file level and call `jest.runOnlyPendingTimers()` inside `act()` before asserting on async state changes

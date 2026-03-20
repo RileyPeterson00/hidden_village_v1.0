@@ -110,4 +110,4 @@ const segmentSimilarity = (playerBodySegment, modelBodySegment) => {
   );
 };
 
-export { segmentSimilarity, matchSegmentToLandmarks };
+export { segmentSimilarity, matchSegmentToLandmarks, angleDifference, getAngle };

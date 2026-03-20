@@ -1,4 +1,4 @@
-import { sanitizeValue, stripUndefined } from "../../../utils/sanitize";
+import { sanitizeValue, stripUndefined } from "../../../utils/sanitize.js";
 
 test('sanitizeValue returns empty string for null', () => {
     expect(sanitizeValue(null)).toBe('');
