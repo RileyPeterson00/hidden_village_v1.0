@@ -1,16 +1,14 @@
-/**
- * Unit tests for segmentSimilarity() - core pose matching algorithm
- * Tests similarity scoring between body segments (0-100 scale)
+﻿/**
+ * Unit tests for segmentSimilarity() - scores how closely two body segments
+ * match on a 0–100 scale (higher = more similar).
+ * Covers: identical segments score 100, inverse segments score 0, output range
+ * invariant, score monotonicity, collinear segments, and commutativity.
  */
 import { segmentSimilarity } from '../../../components/Pose/pose_drawing_utilities';
 
 // DEFAULT_SIMILARITY_THRESHOLD from PoseMatching.js - used for gameplay match detection
 const DEFAULT_SIMILARITY_THRESHOLD = 45;
 
-/**
- * Creates a 3-point body segment object for segmentSimilarity
- * segmentSimilarity expects objects with 3 landmark keys and {x, y} coordinate values
- */
 const createSegment = (p1, p2, p3) => ({
   first: { x: p1.x, y: p1.y },
   second: { x: p2.x, y: p2.y },
@@ -152,5 +150,41 @@ describe('segmentSimilarity', () => {
       expect(score50 > customThreshold).toBe(false);
       expect(score70 > customThreshold).toBe(true);
     });
+  });
+});
+
+describe('segmentSimilarity - score decreases as angular difference grows', () => {
+  it('a small deviation from the model scores higher than a large deviation', () => {
+    const model = createSegment(
+      { x: 0.5, y: 0.3 },
+      { x: 0.5, y: 0.5 },
+      { x: 0.7, y: 0.5 }
+    );
+    const closePlayer = createSegment(
+      { x: 0.51, y: 0.31 },
+      { x: 0.5, y: 0.5 },
+      { x: 0.69, y: 0.51 }
+    );
+    const farPlayer = createSegment(
+      { x: 0.3, y: 0.7 },
+      { x: 0.5, y: 0.5 },
+      { x: 0.7, y: 0.3 }
+    );
+    expect(segmentSimilarity(closePlayer, model)).toBeGreaterThan(
+      segmentSimilarity(farPlayer, model)
+    );
+  });
+});
+
+describe('segmentSimilarity - collinear (straight-line) segments', () => {
+  it('returns a number (does not throw) for a perfectly straight segment', () => {
+    const straight = createSegment(
+      { x: 0.0, y: 0.5 },
+      { x: 0.5, y: 0.5 },
+      { x: 1.0, y: 0.5 }
+    );
+    expect(() => segmentSimilarity(straight, straight)).not.toThrow();
+    const score = segmentSimilarity(straight, straight);
+    expect(typeof score).toBe('number');
   });
 });
