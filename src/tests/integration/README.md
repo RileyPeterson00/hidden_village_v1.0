@@ -46,7 +46,38 @@ npx jest src/tests/integration/  # run only integration tests
 4. The written value is a UTC timestamp string
 5. Three sequential poses each produce a separate write
 6. Sequential poses write different paths
-7. Full lifecycle (start → match) writes twice with correct path suffixes
+7. Full lifecycle (start -> match) writes twice with correct path suffixes
+
+---
+
+### `game-flow.test.js`
+
+**Purpose:** Verify the full game loop at the logic layer — chapter progression, intervention, conjecture ordering, and the connection between pose matching and game state.
+
+**What is real:**
+- `GameMachine` — XState state machine driven with `interpret()`
+- `Latin` — Latin square generator
+- `reorder()` — pure function replicated from `Game.js`
+- `PoseMatching` — real component (pose canvas mocked out)
+
+**What is mocked:**
+- `firebase/database.js` — no real network calls
+- `components/Pose/index.js` — PixiJS canvas replaced with a `<div>`
+- `components/utilities/ErrorBoundary.js` — thin pass-through wrapper
+- `components/Pose/pose_drawing_utilities` — `segmentSimilarity` and `matchSegmentToLandmarks` controlled via `jest.fn()`
+
+**Tests cover:**
+- Chapter progression: machine advances through chapters and reaches ending
+- Conjecture index: `currentConjectureIdx` increments correctly each chapter
+- Conjecture ordering: Latin square produces valid, deterministic orderings; `reorder()` applies them correctly
+- Conjecture selection: `currentConjectureIdx` maps to the correct Latin-ordered conjecture at each step
+- Intervention: fires at the configured index, resumes in `chapter` state afterward
+- Pose match -> machine advance: `PoseMatching.onComplete` wired to `service.send('NEXT')` moves machine out of `intervention`
+- No match -> machine stays: failed pose match leaves machine state unchanged
+
+**Why `Chapter.js` and `Game.js` are not rendered:**
+
+Both components import `@inlet/react-pixi` at the module level, which requires a real WebGL/Canvas context. Jest runs in jsdom, which does not provide WebGL — any attempt to render these components crashes the test runner before a single assertion runs. These tests cover the **logic layer** (state machine + ordering) and the **`PoseMatching` component** (no top-level PixiJS imports) instead.
 
 ---
 
@@ -59,41 +90,6 @@ npx jest src/tests/integration/  # run only integration tests
 ### No Firebase Emulator Required
 
 All Firebase writes are intercepted by `__mocks__/firebase/database.js`. No emulator setup, no real credentials, no network access needed.
-
----
-
-### `game-flow.test.js`
-
-**Purpose:** Verify the full game loop at the logic layer — chapter progression, intervention, conjecture ordering, and the connection between pose matching and game state.
-
-**What is real:**
-- `GameMachine` — real XState state machine, driven with `interpret()`
-- `Latin` — real Latin square generator
-- `reorder()` — replicated from `Game.js` (pure function, no PixiJS dependency)
-- `PoseMatching` — real component rendered for integration tests (pose canvas mocked)
-
-**What is mocked:**
-- `firebase/database.js` — no real network calls
-- `components/Pose/index.js` — PixiJS canvas replaced with a `<div>`
-- `components/utilities/ErrorBoundary.js` — thin pass-through wrapper
-- `components/Pose/pose_drawing_utilities` — `segmentSimilarity` and `matchSegmentToLandmarks` replaced with `jest.fn()` so tests can deterministically trigger or suppress pose matches
-
-**Tests cover:**
-
-| Ticket task | How tested |
-|---|---|
-| Chapter starts / pose matching begins | Verified via PoseMatching rendering without error when wired to a live GameMachine |
-| Correct conjecture for each chapter | `currentConjectureIdx` mapped to Latin-ordered array at each chapter step |
-| Pose match → state machine advances | `segmentSimilarity` returns 100 → `onComplete` fires → `service.send('NEXT')` → machine exits `intervention` |
-| No match → machine stays put | `segmentSimilarity` returns 0 → `onComplete` never called → machine remains in `intervention` |
-| Intervention fires at correct index | Verified with multiple conjecture counts and `conjectureIdxToIntervention` values |
-| Game resumes after intervention | `service.send('NEXT')` → machine returns to `chapter` state |
-| Conjecture ordering validity | Latin square row/column uniqueness + determinism |
-| `reorder` correctness | Full permutation check per condition row |
-
-**Why Chapter.js and Game.js are not rendered:**
-
-Both components import `@inlet/react-pixi` at the module level, which requires a real WebGL/Canvas context. Jest runs in jsdom which does not provide WebGL. Any attempt to render these components crashes the test runner before a single assertion runs. The integration here tests the **logic layer** (state machine + ordering) and the **PoseMatching component** (which has no PixiJS imports at the top level), not the rendering layer.
 
 ---
 

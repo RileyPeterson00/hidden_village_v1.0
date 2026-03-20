@@ -1,5 +1,8 @@
 /**
- * Unit tests for matchSegmentToLandmarks() - landmark extraction for pose matching
+ * Unit tests for matchSegmentToLandmarks() — extracts scaled pixel coordinates
+ * for a named body segment from raw pose data.
+ * Covers: all four arm segments, exact x*width/y*height scaling, z-property
+ * preservation, missing poseData/config keys, and 0x0 container edge cases.
  */
 import { matchSegmentToLandmarks } from '../../../components/Pose/pose_drawing_utilities';
 import { SEGMENT_ANGLE_LANDMARKS } from '../../../components/Pose/landmark_utilities';

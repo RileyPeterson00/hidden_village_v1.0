@@ -1,3 +1,9 @@
+/**
+ * Unit tests for PoseMatching component — pose recognition and game progression.
+ * Covers: match detection via segmentSimilarity thresholds, repetition counting,
+ * Firebase write triggers (start/match), tolerance boundaries, falsy gameID
+ * blocking writes, missing landmark handling, and onComplete firing exactly once.
+ */
 import React from 'react';
 import { render, waitFor, act } from '@testing-library/react';
 import PoseMatching from '../../../components/PoseMatching.js';

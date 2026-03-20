@@ -1,5 +1,8 @@
 /**
- * Unit tests for enrichLandmarks() - pose data enrichment with pelvis/solar plexis
+ * Unit tests for enrichLandmarks() — adds PELVIS and SOLAR_PLEXIS landmarks
+ * to raw MediaPipe pose data.
+ * Covers: midpoint formula correctness, SOLAR_PLEXIS vertical position, mutation
+ * contract (original landmarks not overwritten), and null/missing input handling.
  */
 import { enrichLandmarks } from '../../../components/Pose/landmark_utilities';
 import { POSE_LANDMARKS } from '@mediapipe/holistic/holistic';

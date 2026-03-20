@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Integration Tests: Game Flow
  *
  * Covers the full game loop at the logic layer:
@@ -10,7 +10,7 @@
  *
  * Chapter.js and Game.js both use PixiJS and cannot be rendered in Jest.
  * These tests exercise the state machine + ordering logic that drives them.
- * Pose-match → machine-advance tests use the real PoseMatching component with
+ * Pose-match -> machine-advance tests use the real PoseMatching component with
  * mocked rendering boundaries (Pose canvas, ErrorBoundary, Firebase, drawing utils).
  */
 import React from 'react';
@@ -66,10 +66,10 @@ const startMachine = (contextOverrides = {}) => {
   return interpret(machine).start();
 };
 
-// Drive a machine through a full chapter (intro COMPLETE → outro COMPLETE).
+// Drive a machine through a full chapter (intro COMPLETE -> outro COMPLETE).
 const completeChapter = (service) => {
-  service.send('COMPLETE'); // chapter.intro → chapter.outro
-  service.send('COMPLETE'); // chapter.outro → chapter_transition → next state
+  service.send('COMPLETE'); // chapter.intro -> chapter.outro
+  service.send('COMPLETE'); // chapter.outro -> chapter_transition -> next state
 };
 
 // ─── GameMachine: full game loop ─────────────────────────────────────────────
@@ -82,8 +82,8 @@ describe('GameMachine — full game loop without intervention', () => {
       conjectureIdxToIntervention: null,
     });
 
-    completeChapter(service); // idx 0 → 1
-    completeChapter(service); // idx 1 → 2 → ending
+    completeChapter(service); // idx 0 -> 1
+    completeChapter(service); // idx 1 -> 2 -> ending
     expect(service.state.matches('ending')).toBe(true);
     service.stop();
   });
@@ -127,7 +127,7 @@ describe('GameMachine — full game loop without intervention', () => {
 
 describe('GameMachine — intervention trigger and resume', () => {
   test('intervention fires at the configured conjecture index', () => {
-    // Entry action increments idx 0 → 1; guard: (1 + 1) === 2 → intervention
+    // Entry action increments idx 0 -> 1; guard: (1 + 1) === 2 -> intervention
     const service = startMachine({
       conjectures: [{}, {}, {}, {}],
       conjectureIdxToIntervention: 2,
@@ -151,33 +151,33 @@ describe('GameMachine — intervention trigger and resume', () => {
   });
 
   test('currentConjectureIdx is correct after intervention resumes', () => {
-    // After idx 0 → 1 (intervention), NEXT resumes at idx 1
+    // After idx 0 -> 1 (intervention), NEXT resumes at idx 1
     const service = startMachine({
       conjectures: [{}, {}, {}, {}],
       conjectureIdxToIntervention: 2,
     });
 
-    completeChapter(service); // idx → 1, intervention
+    completeChapter(service); // idx -> 1, intervention
     service.send('NEXT');
     expect(service.state.context.currentConjectureIdx).toBe(1);
     service.stop();
   });
 
   test('game reaches ending after intervention + remaining chapters', () => {
-    // 4 conjectures, intervention after chapter 0 → 1 (idx+1 === 2)
-    // After intervention: complete chapters at idx 1, 2, 3 → ending at idx 4? No...
+    // 4 conjectures, intervention after chapter 0 -> 1 (idx+1 === 2)
+    // After intervention: complete chapters at idx 1, 2, 3 -> ending at idx 4? No...
     // With 4 conjectures: ending when idx === 3 (length - 1)
-    // idx 0 → 1 (intervention), resume idx=1
-    // idx 1 → 2 (normal), idx 2 → 3 (ending)
+    // idx 0 -> 1 (intervention), resume idx=1
+    // idx 1 -> 2 (normal), idx 2 -> 3 (ending)
     const service = startMachine({
       conjectures: [{}, {}, {}, {}],
       conjectureIdxToIntervention: 2,
     });
 
-    completeChapter(service); // idx 0→1, intervention
+    completeChapter(service); // idx 0->1, intervention
     service.send('NEXT');     // resume at idx 1
-    completeChapter(service); // idx 1→2, normal chapter
-    completeChapter(service); // idx 2→3, ending
+    completeChapter(service); // idx 1->2, normal chapter
+    completeChapter(service); // idx 2->3, ending
     expect(service.state.matches('ending')).toBe(true);
     service.stop();
   });
@@ -189,11 +189,11 @@ describe('GameMachine — intervention trigger and resume', () => {
       conjectureIdxToIntervention: 4,
     });
 
-    completeChapter(service); // idx 0→1, no intervention
+    completeChapter(service); // idx 0->1, no intervention
     expect(service.state.matches('chapter')).toBe(true);
-    completeChapter(service); // idx 1→2, no intervention
+    completeChapter(service); // idx 1->2, no intervention
     expect(service.state.matches('chapter')).toBe(true);
-    completeChapter(service); // idx 2→3, intervention
+    completeChapter(service); // idx 2->3, intervention
     expect(service.state.matches('intervention')).toBe(true);
     service.stop();
   });
@@ -258,7 +258,7 @@ describe('Latin square — conjecture ordering via reorder()', () => {
   });
 
   test('condition index out of bounds falls back to row 0 ordering', () => {
-    // Mirrors Game.js: condition >= numConjectures → use square[0]
+    // Mirrors Game.js: condition >= numConjectures -> use square[0]
     const n = conjectures.length;
     const fallback = reorder(conjectures, latin.square[0]);
     const outOfBounds = reorder(conjectures, n < n ? latin.square[n] : latin.square[0]);
@@ -279,9 +279,9 @@ describe('Latin square — conjecture ordering via reorder()', () => {
   });
 });
 
-// ─── PoseMatching → GameMachine integration ──────────────────────────────────
+// ─── PoseMatching -> GameMachine integration ──────────────────────────────────
 
-describe('PoseMatching → GameMachine integration', () => {
+describe('PoseMatching -> GameMachine integration', () => {
   let service;
 
   beforeEach(() => {
@@ -332,7 +332,7 @@ describe('PoseMatching → GameMachine integration', () => {
     completeChapter(service);
     expect(service.state.matches('intervention')).toBe(true);
 
-    // similarity stays 0; tolerance=30 → never matches
+    // similarity stays 0; tolerance=30 -> never matches
     const onComplete = jest.fn();
     const { unmount } = render(
       <PoseMatching

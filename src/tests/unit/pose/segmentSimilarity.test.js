@@ -1,6 +1,8 @@
 /**
- * Unit tests for segmentSimilarity() - core pose matching algorithm
- * Tests similarity scoring between body segments (0-100 scale)
+ * Unit tests for segmentSimilarity() — scores how closely two body segments
+ * match on a 0–100 scale (higher = more similar).
+ * Covers: identical segments score 100, inverse segments score 0, output range
+ * invariant, score monotonicity, collinear segments, and commutativity.
  */
 import { segmentSimilarity } from '../../../components/Pose/pose_drawing_utilities';
 
