@@ -4,6 +4,7 @@ import { createMachine, assign } from "xstate";
 
 const TutorialMachine = createMachine(
   {
+    predictableActionArguments: true,
     initial: "welcome",
     context: {
       currentStepIndex: 0,

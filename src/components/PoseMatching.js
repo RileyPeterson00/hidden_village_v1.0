@@ -5,7 +5,7 @@ import {
 import { enrichLandmarks } from "./Pose/landmark_utilities";
 import ErrorBoundary from "./utilities/ErrorBoundary.js";
 import Pose from "./Pose/index.js";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Text, Container } from "@inlet/react-pixi";
 import { white } from "../utils/colors";
 import { writeToDatabasePoseMatch, writeToDatabasePoseStart } from "../firebase/database.js";
@@ -57,6 +57,7 @@ const PoseMatching = (props) => {
       : `Match pose ${Math.floor(linearPoseIndex / 3) + 1}.${linearPoseIndex % 3 + 1} on the left!`
   );
   const [poseSimilarity, setPoseSimilarity] = useState([]);
+  const transitionTimeoutRef = useRef(null);
 
   const SUB_GROUP_SIZE = 3;
   const modelColumn = useMemo(() => columnDimensions(1), [columnDimensions]);
@@ -171,7 +172,12 @@ const PoseMatching = (props) => {
     setIsTransitioning(true);
     setText("Great!");
 
-    setTimeout(() => {
+    // Clear any previous timeout to avoid stray callbacks
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current);
+    }
+
+    transitionTimeoutRef.current = setTimeout(() => {
       if (!singleMatchPerPose) {
         const nextIndex = linearPoseIndex + 1;
         if (nextIndex >= posesToMatch.length) {
@@ -218,6 +224,15 @@ const PoseMatching = (props) => {
     repIndex,
     uniquePosesCount,
   ]);
+
+  // Cleanup any pending transition timeout on unmount to avoid state updates
+  useEffect(() => {
+    return () => {
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isTransitioning || completed || poseSimilarity.length === 0) return;

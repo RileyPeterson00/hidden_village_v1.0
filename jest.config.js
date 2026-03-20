@@ -13,6 +13,7 @@ module.exports = {
     '^pixi\\.js$': '<rootDir>/__mocks__/pixi.js',
     '^@inlet/react-pixi$': '<rootDir>/__mocks__/@inlet/react-pixi.js',
     '^@pixi/graphics$': '<rootDir>/__mocks__/@pixi/graphics.js',
+    '^.+\\.toml$': '<rootDir>/src/tests/fixtures/tutorialTomlMock.js',
   },
   roots: ['<rootDir>/src/tests'], // only look into the tests directory for tests
 };

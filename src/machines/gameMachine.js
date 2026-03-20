@@ -2,6 +2,7 @@ import { createMachine, assign } from "xstate";
 
 const GameMachine = createMachine(
   {
+    predictableActionArguments: true,
     id: "GameMachine",
     initial: "chapter",
     context: {
