@@ -74,7 +74,7 @@ const completeChapter = (service) => {
 
 // ─── GameMachine: full game loop ─────────────────────────────────────────────
 
-describe('GameMachine — full game loop without intervention', () => {
+describe('GameMachine - full game loop without intervention', () => {
   test('machine reaches ending after completing all chapters', () => {
     const conjectures = [{}, {}, {}]; // 3 conjectures
     const service = startMachine({
@@ -106,7 +106,7 @@ describe('GameMachine — full game loop without intervention', () => {
     service.stop();
   });
 
-  test('ending state is final — no further transitions occur', () => {
+  test('ending state is final - no further transitions occur', () => {
     const service = startMachine({
       conjectures: [{}, {}],
       conjectureIdxToIntervention: null,
@@ -125,7 +125,7 @@ describe('GameMachine — full game loop without intervention', () => {
 
 // ─── GameMachine: intervention ────────────────────────────────────────────────
 
-describe('GameMachine — intervention trigger and resume', () => {
+describe('GameMachine - intervention trigger and resume', () => {
   test('intervention fires at the configured conjecture index', () => {
     // Entry action increments idx 0 -> 1; guard: (1 + 1) === 2 -> intervention
     const service = startMachine({
@@ -182,7 +182,7 @@ describe('GameMachine — intervention trigger and resume', () => {
     service.stop();
   });
 
-  test('intervention does not fire on every chapter — only at the configured index', () => {
+  test('intervention does not fire on every chapter - only at the configured index', () => {
     // conjectureIdxToIntervention=4: only fires when idx becomes 3 (3+1===4)
     const service = startMachine({
       conjectures: [{}, {}, {}, {}, {}, {}],
@@ -201,7 +201,7 @@ describe('GameMachine — intervention trigger and resume', () => {
 
 // ─── Latin square: validity ───────────────────────────────────────────────────
 
-describe('Latin square — valid ordering structure', () => {
+describe('Latin square - valid ordering structure', () => {
   test('produces an N×N square for size 3', () => {
     const latin = new Latin(3);
     expect(latin.square).toHaveLength(3);
@@ -227,7 +227,7 @@ describe('Latin square — valid ordering structure', () => {
     }
   });
 
-  test('is deterministic — same size always produces the same square', () => {
+  test('is deterministic - same size always produces the same square', () => {
     const a = new Latin(4);
     const b = new Latin(4);
     expect(a.square).toEqual(b.square);
@@ -236,7 +236,7 @@ describe('Latin square — valid ordering structure', () => {
 
 // ─── Latin square: conjecture ordering ───────────────────────────────────────
 
-describe('Latin square — conjecture ordering via reorder()', () => {
+describe('Latin square - conjecture ordering via reorder()', () => {
   const conjectures = ['A', 'B', 'C', 'D'];
   const latin = new Latin(4);
 

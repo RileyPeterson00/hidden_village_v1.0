@@ -1,5 +1,5 @@
-/**
- * Unit tests for PoseMatching component — pose recognition and game progression.
+﻿/**
+ * Unit tests for PoseMatching component - pose recognition and game progression.
  * Covers: match detection via segmentSimilarity thresholds, repetition counting,
  * Firebase write triggers (start/match), tolerance boundaries, falsy gameID
  * blocking writes, missing landmark handling, and onComplete firing exactly once.

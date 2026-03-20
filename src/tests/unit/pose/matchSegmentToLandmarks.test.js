@@ -1,5 +1,5 @@
-/**
- * Unit tests for matchSegmentToLandmarks() — extracts scaled pixel coordinates
+﻿/**
+ * Unit tests for matchSegmentToLandmarks() - extracts scaled pixel coordinates
  * for a named body segment from raw pose data.
  * Covers: all four arm segments, exact x*width/y*height scaling, z-property
  * preservation, missing poseData/config keys, and 0x0 container edge cases.
@@ -108,7 +108,7 @@ const buildUniformPose = (x = 0.5, y = 0.5) => ({
   })),
 });
 
-describe('matchSegmentToLandmarks — all four arm segments', () => {
+describe('matchSegmentToLandmarks - all four arm segments', () => {
   const pose = buildUniformPose();
 
   it.each([
@@ -124,7 +124,7 @@ describe('matchSegmentToLandmarks — all four arm segments', () => {
 
 });
 
-describe('matchSegmentToLandmarks — coordinate scaling', () => {
+describe('matchSegmentToLandmarks - coordinate scaling', () => {
   it('scales x by container width and y by container height (exact formula)', () => {
     const landmarks = Array(33).fill(null).map(() => ({ x: 0.0, y: 0.0, z: 0, visibility: 1 }));
     landmarks[24] = { x: 0.5, y: 0.25, z: 0, visibility: 1 };

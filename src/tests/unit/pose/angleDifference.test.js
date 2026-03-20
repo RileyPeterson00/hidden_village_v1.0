@@ -1,5 +1,5 @@
-/**
- * angleDifference() — piecewise exponential scoring (0–100)
+﻿/**
+ * angleDifference() - piecewise exponential scoring (0–100)
  * Internal translation: angle = currentAngle + (PI/2 - desiredAngle)
  * Setting desiredAngle = PI/2 makes translated angle === currentAngle.
  */
@@ -8,10 +8,10 @@ import { angleDifference } from '../../../components/Pose/pose_drawing_utilities
 const PI = Math.PI;
 
 // atAngle(a) drives angleDifference with desiredAngle = PI/2, so the
-// translated angle equals `a` directly — lets us target each branch precisely.
+// translated angle equals `a` directly - lets us target each branch precisely.
 const atAngle = (angle) => angleDifference(angle, PI / 2);
 
-describe('angleDifference — lower branch (0 ≤ angle ≤ π/2)', () => {
+describe('angleDifference - lower branch (0 ≤ angle ≤ π/2)', () => {
   it('returns a small positive number (~0.17) at the branch minimum (angle = 0)', () => {
     const score = atAngle(0);
     expect(score).toBeGreaterThan(0);
@@ -50,7 +50,7 @@ describe('angleDifference — lower branch (0 ≤ angle ≤ π/2)', () => {
   });
 });
 
-describe('angleDifference — upper branch (π/2 < angle ≤ π)', () => {
+describe('angleDifference - upper branch (π/2 < angle ≤ π)', () => {
   it('returns a value approaching 100 just above the branch start (angle = π/2 + ε)', () => {
     const score = atAngle(PI / 2 + 0.001);
     expect(score).toBeGreaterThan(90);
@@ -83,7 +83,7 @@ describe('angleDifference — upper branch (π/2 < angle ≤ π)', () => {
   });
 });
 
-describe('angleDifference — angles outside [0, π] return 0', () => {
+describe('angleDifference - angles outside [0, π] return 0', () => {
   it('returns 0 for a slightly negative translated angle (-0.01)', () => {
     expect(atAngle(-0.01)).toBe(0);
   });
@@ -105,7 +105,7 @@ describe('angleDifference — angles outside [0, π] return 0', () => {
   });
 });
 
-describe('angleDifference — output range invariant', () => {
+describe('angleDifference - output range invariant', () => {
   it('never produces a score below 0 for any angle in [0, π]', () => {
     const step = PI / 100;
     for (let a = 0; a <= PI; a += step) {
@@ -129,7 +129,7 @@ describe('angleDifference — output range invariant', () => {
   });
 });
 
-describe('angleDifference — desiredAngle shift', () => {
+describe('angleDifference - desiredAngle shift', () => {
   it('returns ~100 when currentAngle equals desiredAngle (player perfectly matches model)', () => {
     const pairs = [
       [0, 0],

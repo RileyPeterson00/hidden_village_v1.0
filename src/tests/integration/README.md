@@ -1,6 +1,6 @@
-# Integration Tests
+﻿# Integration Tests
 
-Integration tests verify that **multiple real modules work together correctly**. Unlike unit tests, these do not mock the function under test — they call the actual implementation and only mock external boundaries (Firebase network calls, UI components with complex import chains).
+Integration tests verify that **multiple real modules work together correctly**. Unlike unit tests, these do not mock the function under test - they call the actual implementation and only mock external boundaries (Firebase network calls, UI components with complex import chains).
 
 ---
 
@@ -30,14 +30,14 @@ npx jest src/tests/integration/  # run only integration tests
 **Purpose:** Verify that pose match events correctly flow through `src/firebase/database.js` and produce the right Firebase `set()` calls.
 
 **What is real:**
-- `writeToDatabasePoseMatch()` — real implementation
-- `writeToDatabasePoseStart()` — real implementation
+- `writeToDatabasePoseMatch()` - real implementation
+- `writeToDatabasePoseStart()` - real implementation
 - Path-building logic (`_GameData/${gameId}/.../${poseName} Match GMT`)
 
 **What is mocked:**
-- `firebase/database` — `set`, `ref`, etc. (no real network calls)
-- `firebase/auth` — `onAuthStateChanged` stubbed to prevent a module initialization timing issue (see note below)
-- `CurricularModule` — heavy UI import not used by pose write functions
+- `firebase/database` - `set`, `ref`, etc. (no real network calls)
+- `firebase/auth` - `onAuthStateChanged` stubbed to prevent a module initialization timing issue (see note below)
+- `CurricularModule` - heavy UI import not used by pose write functions
 
 **Tests cover:**
 1. A pose match calls `set()` once
@@ -52,19 +52,19 @@ npx jest src/tests/integration/  # run only integration tests
 
 ### `game-flow.test.js`
 
-**Purpose:** Verify the full game loop at the logic layer — chapter progression, intervention, conjecture ordering, and the connection between pose matching and game state.
+**Purpose:** Verify the full game loop at the logic layer - chapter progression, intervention, conjecture ordering, and the connection between pose matching and game state.
 
 **What is real:**
-- `GameMachine` — XState state machine driven with `interpret()`
-- `Latin` — Latin square generator
-- `reorder()` — pure function replicated from `Game.js`
-- `PoseMatching` — real component (pose canvas mocked out)
+- `GameMachine` - XState state machine driven with `interpret()`
+- `Latin` - Latin square generator
+- `reorder()` - pure function replicated from `Game.js`
+- `PoseMatching` - real component (pose canvas mocked out)
 
 **What is mocked:**
-- `firebase/database.js` — no real network calls
-- `components/Pose/index.js` — PixiJS canvas replaced with a `<div>`
-- `components/utilities/ErrorBoundary.js` — thin pass-through wrapper
-- `components/Pose/pose_drawing_utilities` — `segmentSimilarity` and `matchSegmentToLandmarks` controlled via `jest.fn()`
+- `firebase/database.js` - no real network calls
+- `components/Pose/index.js` - PixiJS canvas replaced with a `<div>`
+- `components/utilities/ErrorBoundary.js` - thin pass-through wrapper
+- `components/Pose/pose_drawing_utilities` - `segmentSimilarity` and `matchSegmentToLandmarks` controlled via `jest.fn()`
 
 **Tests cover:**
 - Chapter progression: machine advances through chapters and reaches ending
@@ -77,7 +77,7 @@ npx jest src/tests/integration/  # run only integration tests
 
 **Why `Chapter.js` and `Game.js` are not rendered:**
 
-Both components import `@inlet/react-pixi` at the module level, which requires a real WebGL/Canvas context. Jest runs in jsdom, which does not provide WebGL — any attempt to render these components crashes the test runner before a single assertion runs. These tests cover the **logic layer** (state machine + ordering) and the **`PoseMatching` component** (no top-level PixiJS imports) instead.
+Both components import `@inlet/react-pixi` at the module level, which requires a real WebGL/Canvas context. Jest runs in jsdom, which does not provide WebGL - any attempt to render these components crashes the test runner before a single assertion runs. These tests cover the **logic layer** (state machine + ordering) and the **`PoseMatching` component** (no top-level PixiJS imports) instead.
 
 ---
 
@@ -85,7 +85,7 @@ Both components import `@inlet/react-pixi` at the module level, which requires a
 
 ### Auth Mock Override
 
-`jest.setup.js` mocks `onAuthStateChanged` to fire its callback **synchronously**. When `database.js` loads, this fires before `formatDate` is defined in that module (JavaScript temporal dead zone for `const`). The integration test overrides `onAuthStateChanged` to never call its callback, keeping module-level user variables as `undefined`. This does not affect test correctness — `gameId` and `poseName` are passed directly to the write functions and are always present in the path regardless of user session state.
+`jest.setup.js` mocks `onAuthStateChanged` to fire its callback **synchronously**. When `database.js` loads, this fires before `formatDate` is defined in that module (JavaScript temporal dead zone for `const`). The integration test overrides `onAuthStateChanged` to never call its callback, keeping module-level user variables as `undefined`. This does not affect test correctness - `gameId` and `poseName` are passed directly to the write functions and are always present in the path regardless of user session state.
 
 ### No Firebase Emulator Required
 

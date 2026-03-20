@@ -1,5 +1,5 @@
-/**
- * Unit tests for enrichLandmarks() — adds PELVIS and SOLAR_PLEXIS landmarks
+﻿/**
+ * Unit tests for enrichLandmarks() - adds PELVIS and SOLAR_PLEXIS landmarks
  * to raw MediaPipe pose data.
  * Covers: midpoint formula correctness, SOLAR_PLEXIS vertical position, mutation
  * contract (original landmarks not overwritten), and null/missing input handling.
@@ -86,7 +86,7 @@ const buildPose = ({ leftHip, rightHip, rightShoulder }) => {
   return { poseLandmarks: landmarks };
 };
 
-describe('enrichLandmarks — PELVIS edge cases', () => {
+describe('enrichLandmarks - PELVIS edge cases', () => {
   it('handles hips at opposite extremes (0.0 and 1.0)', () => {
     const pose = buildPose({
       leftHip:       { x: 0.0, y: 0.0 },
@@ -110,7 +110,7 @@ describe('enrichLandmarks — PELVIS edge cases', () => {
   });
 });
 
-describe('enrichLandmarks — SOLAR_PLEXIS formula precision', () => {
+describe('enrichLandmarks - SOLAR_PLEXIS formula precision', () => {
   it('SOLAR_PLEXIS.x equals PELVIS.x', () => {
     const pose = buildPose({
       leftHip:       { x: 0.3, y: 0.6 },
@@ -144,7 +144,7 @@ describe('enrichLandmarks — SOLAR_PLEXIS formula precision', () => {
 
 });
 
-describe('enrichLandmarks — mutation contract', () => {
+describe('enrichLandmarks - mutation contract', () => {
   it('does not remove or overwrite any of the original 33 landmarks', () => {
     const pose = buildPose({
       leftHip:       { x: 0.4, y: 0.5 },

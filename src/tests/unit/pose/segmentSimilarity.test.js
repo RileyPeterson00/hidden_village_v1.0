@@ -1,5 +1,5 @@
-/**
- * Unit tests for segmentSimilarity() — scores how closely two body segments
+﻿/**
+ * Unit tests for segmentSimilarity() - scores how closely two body segments
  * match on a 0–100 scale (higher = more similar).
  * Covers: identical segments score 100, inverse segments score 0, output range
  * invariant, score monotonicity, collinear segments, and commutativity.
@@ -153,7 +153,7 @@ describe('segmentSimilarity', () => {
   });
 });
 
-describe('segmentSimilarity — score decreases as angular difference grows', () => {
+describe('segmentSimilarity - score decreases as angular difference grows', () => {
   it('a small deviation from the model scores higher than a large deviation', () => {
     const model = createSegment(
       { x: 0.5, y: 0.3 },
@@ -176,7 +176,7 @@ describe('segmentSimilarity — score decreases as angular difference grows', ()
   });
 });
 
-describe('segmentSimilarity — collinear (straight-line) segments', () => {
+describe('segmentSimilarity - collinear (straight-line) segments', () => {
   it('returns a number (does not throw) for a perfectly straight segment', () => {
     const straight = createSegment(
       { x: 0.0, y: 0.5 },

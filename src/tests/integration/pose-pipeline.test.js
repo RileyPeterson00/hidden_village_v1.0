@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Integration Tests: Pose Pipeline → Firebase Database
  *
  * These tests verify the data flow from pose match events through to Firebase
@@ -10,7 +10,7 @@
 // The global auth mock (jest.setup.js) fires onAuthStateChanged synchronously,
 // which triggers database.js's auth callback before `formatDate` is defined in
 // that module (temporal dead zone). Override it here to never fire so the
-// module-level variables remain undefined — the write functions still work and
+// module-level variables remain undefined - the write functions still work and
 // we verify paths by gameId/poseName, not by user-session segments.
 jest.mock('firebase/auth', () => ({
   getAuth: jest.fn(() => ({})),
