@@ -22,8 +22,8 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.{js,jsx}',
     '!src/firebase/database.js',  // excluded until database coverage is added
-    '!src/**/*.test.{js,jsx}',
     '!src/index.js',
-    '!src/tests/e2e/*',
+    '!src/**/*.test.{js,jsx}', // exclude colocated unit tests
+    '!src/tests/**', // exclude all test files/helpers under src/tests
   ],
 };
