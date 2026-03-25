@@ -2,6 +2,16 @@ import { interpret } from "xstate";
 import TutorialMachine from "../../../machines/tutorialMachine";
 import tutorialData from "../../../scripts/tutorial.toml";
 
+/**
+ * Unit tests for `tutorialMachine`.
+ *
+ * These tests validate:
+ * - initial entry loads the first tutorial step text
+ * - timed progression through `welcome` / `welcome2` into `running`
+ * - `NEXT` behavior while in `running` (to `transition`)
+ * - `transition` -> `running` after a timer delay (including step index increment)
+ * - reaching `final` when the step index equals the number of steps
+ */
 describe("TutorialMachine", () => {
   const steps = tutorialData.tutorial.instructions;
 

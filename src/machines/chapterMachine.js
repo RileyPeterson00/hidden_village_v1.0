@@ -1,5 +1,20 @@
 import { createMachine, assign } from "xstate";
 
+/**
+ * XState machine that controls the dialogue flow for a single "chapter".
+ *
+ * It plays either an `intro` or `outro` sequence (based on `context.isOutro`),
+ * advances dialogue entries when the UI sends `NEXT`, and calls completion
+ * callbacks when the relevant text array is exhausted.
+ *
+ * Key UI events
+ * - `RESET_CONTEXT`: provide `introText`, `outroText`, `scene`, and (optionally)
+ *   completion callbacks.
+ * - `NEXT`: advance to the next dialogue line; when no lines remain, transitions
+ *   to the `done` final state and triggers the appropriate callback.
+ *
+ * This machine is used by `src/components/Chapter.js`.
+ */
 const chapterMachine = createMachine(
   {
     predictableActionArguments: true,
