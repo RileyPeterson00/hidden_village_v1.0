@@ -1,6 +1,18 @@
 import { interpret } from 'xstate';
 import GameMachine from '../../../machines/gameMachine';
 
+/**
+ * Unit tests for `gameMachine`.
+ *
+ * These tests validate the high-level routing between:
+ * - tutorial -> chapter
+ * - chapter intro -> outro
+ * - outro -> chapter_transition
+ * - chapter_transition -> intervention / ending (guard routing)
+ * - intervention -> chapter on NEXT
+ *
+ * It also checks some basic context updates and safety around edge cases.
+ */
 // Helper: spin up an interpreted machine with optional context overrides.
 // Calling .stop() after each test keeps services from leaking between tests.
 const startMachine = (contextOverrides = {}) => {

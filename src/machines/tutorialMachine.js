@@ -2,6 +2,16 @@ import data from "../scripts/tutorial.toml";
 
 import { createMachine, assign } from "xstate";
 
+/**
+ * XState machine that runs the in-game tutorial sequence.
+ *
+ * It reads tutorial steps from `src/scripts/tutorial.toml` and:
+ * - auto-advances through `welcome` and `welcome2` using timers
+ * - enters `running`, where the UI should send `NEXT` once the current pose
+ *   has been matched (see `src/components/Tutorial.js`)
+ * - shows a short `transition` message between steps
+ * - transitions to `final` when all steps are complete
+ */
 const TutorialMachine = createMachine(
   {
     predictableActionArguments: true,
