@@ -23,7 +23,6 @@ module.exports = {
     'src/**/*.{js,jsx}',
     '!src/firebase/database.js',  // excluded until database coverage is added
     '!src/index.js',
-    '!src/**/*.test.{js,jsx}', // exclude colocated unit tests
     '!src/tests/**', // exclude all test files/helpers under src/tests
   ],
 };
