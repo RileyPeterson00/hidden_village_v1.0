@@ -16,6 +16,9 @@ module.exports = {
     '^.+\\.toml$': '<rootDir>/src/tests/fixtures/tutorialTomlMock.js',
   },
   roots: ['<rootDir>/src/tests'], // only look into the tests directory for tests
+  testPathIgnorePatterns: [
+    '<rootDir>/src/tests/e2e/',
+  ],
   collectCoverageFrom: [
     'src/**/*.{js,jsx}',
     '!src/firebase/database.js',  // excluded until database coverage is added
