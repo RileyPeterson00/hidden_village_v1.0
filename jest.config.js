@@ -24,5 +24,6 @@ module.exports = {
     '!src/firebase/database.js',  // excluded until database coverage is added
     '!src/**/*.test.{js,jsx}',
     '!src/index.js',
+    '!src/tests/e2e/*',
   ],
 };
