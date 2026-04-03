@@ -1,5 +1,18 @@
 import '@testing-library/jest-dom';
 
+// Routine console noise from app code (e.g. database.js) drowns out real failures in CI/local runs.
+// By default we noop log / debug / info / warn / error. Tests that assert on console use jest.spyOn first.
+// Full console: npm run test:verbose-console  (or VERBOSE_TESTS=1)
+if (process.env.VERBOSE_TESTS !== '1') {
+  const noop = () => {};
+  const c = globalThis.console;
+  c.log = noop;
+  c.debug = noop;
+  c.info = noop;
+  c.warn = noop;
+  c.error = noop;
+}
+
 // Auto-mock Firebase modules
 jest.mock('firebase/app');
 jest.mock('firebase/auth');

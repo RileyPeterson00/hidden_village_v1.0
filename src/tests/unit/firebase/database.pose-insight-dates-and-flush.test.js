@@ -1,12 +1,8 @@
 /**
- * Unit Tests: Firebase Database Write Operations
+ * database.js — pose event writes, insight start, stopAutoFlush, date helpers, promiseChecker (happy path)
  *
- * Tests writeToDatabasePoseMatch and writeToDatabasePoseStart for:
- * - Correct ref() paths
- * - Correct set() data
- * - Error handling (network errors, rejections)
- *
- * All Firebase SDK calls are mocked via jest.config.js moduleNameMapper.
+ * Focuses on primitive write helpers and utilities; buffered session flows live in
+ * `database.pose-buffers-flush-timers.test.js`.
  */
 
 // Prevent auth callback from firing (avoids undefined module vars in path)
@@ -32,6 +28,11 @@ jest.mock('../../../components/CurricularModule/CurricularModule.js', () => ({
 import {
   writeToDatabasePoseMatch,
   writeToDatabasePoseStart,
+  writeToDatabaseInsightStart,
+  stopAutoFlush,
+  checkDateFormat,
+  convertDateFormat,
+  promiseChecker,
 } from '../../../firebase/database.js';
 import { set, ref } from 'firebase/database';
 
@@ -142,5 +143,98 @@ describe('writeToDatabasePoseStart', () => {
 
     const promises = await writeToDatabasePoseStart('Pose 1-1', 'conj-uuid-001', 'game-abc-123');
     await expect(Promise.all(promises)).rejects.toThrow('Permission denied');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkDateFormat
+// ---------------------------------------------------------------------------
+describe('checkDateFormat', () => {
+  beforeEach(() => {
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    console.log.mockRestore();
+  });
+
+  test('returns false and logs for an invalid date string', () => {
+    expect(checkDateFormat('not-a-date')).toBe(false);
+    expect(console.log).toHaveBeenCalledWith('Invalid date format');
+  });
+
+  test('does not return false for a valid mm/dd/yyyy input (regex passes)', () => {
+    expect(checkDateFormat('01/15/2024')).not.toBe(false);
+  });
+
+  test('accepts single-digit month and day variants', () => {
+    expect(checkDateFormat('1/5/2024')).not.toBe(false);
+    expect(checkDateFormat('1-5-2024')).not.toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// convertDateFormat
+// ---------------------------------------------------------------------------
+describe('convertDateFormat', () => {
+  test('converts slash-separated mm/dd/yyyy to yyyy-mm-dd', () => {
+    expect(convertDateFormat('03/04/2024')).toBe('2024-03-04');
+  });
+
+  test('converts dash-separated mm-dd-yyyy to yyyy-mm-dd', () => {
+    expect(convertDateFormat('12-25-2024')).toBe('2024-12-25');
+  });
+
+  test('handles single-digit month and day with slashes', () => {
+    expect(convertDateFormat('6/30/2024')).toBe('2024-6-30');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// promiseChecker
+// ---------------------------------------------------------------------------
+describe('promiseChecker', () => {
+  beforeEach(() => {
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    console.log.mockRestore();
+  });
+
+  test('resolves when all tracked promises resolve and logs no data loss', async () => {
+    const settled = await promiseChecker(12, [Promise.resolve(), Promise.resolve()]);
+
+    expect(settled).toBeUndefined();
+    expect(console.log).toHaveBeenCalledWith('No data loss detected');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// writeToDatabaseInsightStart
+// ---------------------------------------------------------------------------
+describe('writeToDatabaseInsightStart', () => {
+  test('returns immediately without calling set when gameId is falsy', async () => {
+    await writeToDatabaseInsightStart('');
+    expect(set).not.toHaveBeenCalled();
+    await writeToDatabaseInsightStart(null);
+    expect(set).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// stopAutoFlush
+// ---------------------------------------------------------------------------
+describe('stopAutoFlush', () => {
+  test('calls clearInterval when interval id is provided', () => {
+    const clearSpy = jest.spyOn(global, 'clearInterval').mockImplementation(() => {});
+    stopAutoFlush(42);
+    expect(clearSpy).toHaveBeenCalledWith(42);
+    clearSpy.mockRestore();
+  });
+
+  test('does not throw when interval id is null or undefined', () => {
+    expect(() => stopAutoFlush(null)).not.toThrow();
+    expect(() => stopAutoFlush(undefined)).not.toThrow();
   });
 });
