@@ -23,7 +23,6 @@ module.exports = {
     'src/**/*.{js,jsx}',
     '!src/**/*.test.{js,jsx}',
     '!src/index.js',
-    // Test tree: specs, fixtures, shared mocks/helpers — not production coverage targets
     '!src/tests/**',
   ],
 };
