@@ -46,6 +46,18 @@ const ensureDeviceIdentity = () => {
   deviceSlug = sanitize(`${nick}-${id.substring(0, 8)}`);
 };
 
+const padTo2Digits = (num) => {
+  return num.toString().padStart(2, '0');
+};
+
+const formatDate = (date) => {
+  const year = date.getFullYear();
+  const month = padTo2Digits(date.getMonth() + 1);
+  const day = padTo2Digits(date.getDate());
+
+  return `${year}-${month}-${day}`;
+};
+
 // Declare variables that change on game state change
 let eventType;
 let gameId;
@@ -71,21 +83,6 @@ onAuthStateChanged(auth, (user) => {
     userName = null;
   }
 });
-
-// Function to Format date into readable format
-// Function to add leading 0s to numbers to keep format
-const padTo2Digits = (num) => {
-  return num.toString().padStart(2, '0');
-};
-
-// Function to format date to YYYY-MM-DD (So it can be ordered easier)
-const formatDate = (date) => {
-  const year = date.getFullYear();
-  const month = padTo2Digits(date.getMonth() + 1); // +1 because months are 0-indexed
-  const day = padTo2Digits(date.getDate());
-
-  return `${year}-${month}-${day}`;
-};
 
 // Define data keys for the text inputs of conjectures
 export const keysToPush = [

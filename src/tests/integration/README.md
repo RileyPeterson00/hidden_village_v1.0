@@ -1,4 +1,4 @@
-﻿# Integration Tests
+# Integration Tests
 
 Integration tests verify that **multiple real modules work together correctly**. Unlike unit tests, these do not mock the function under test - they call the actual implementation and only mock external boundaries (Firebase network calls, UI components with complex import chains).
 
@@ -25,6 +25,17 @@ npx jest src/tests/integration/  # run only integration tests
 
 ## Current Test Files
 
+### Testing `database.js` (prerequisites)
+
+Several integration tests import `src/firebase/database.js` directly. Because that module registers `onAuthStateChanged` at load time, use the same overrides as `pose-pipeline.test.js`:
+
+1. **`firebase/auth`** — mock `onAuthStateChanged` so it never invokes its callback (avoids the `formatDate` temporal dead zone when the default `jest.setup.js` mock fires synchronously).
+2. **`CurricularModule`** — mock `../../components/CurricularModule/CurricularModule.js` (or the path relative to your test file) so Jest can resolve the side-effect import inside `database.js`.
+
+See `pose-pipeline.test.js` and `database-writes.test.js` for working examples. Firebase RTDB continues to be satisfied by `__mocks__/firebase/database.js` (no emulator).
+
+Broader `database.js` behavior is covered by several focused unit files under `src/tests/unit/firebase/` (names prefixed with `database.`), which mock `userDatabase`, `jsonTOcsv`, and `globalThis.getPlayGame` where the implementation expects them. See `database.exports-org-wrappers-session-writes.test.js`, `database.rtdb-reads-lists-authorization.test.js`, `database.jest.rtdb-mocks.js`, and related files in that folder.
+
 ### `pose-pipeline.test.js`
 
 **Purpose:** Verify that pose match events correctly flow through `src/firebase/database.js` and produce the right Firebase `set()` calls.
@@ -47,6 +58,18 @@ npx jest src/tests/integration/  # run only integration tests
 5. Three sequential poses each produce a separate write
 6. Sequential poses write different paths
 7. Full lifecycle (start -> match) writes twice with correct path suffixes
+
+---
+
+### `database-writes.test.js`
+
+**Purpose:** Cover `_PoseData` session initialization, `endSession` frame flush paths (via `update()`), and additional `_GameData` student-flow writes (`writeToDatabaseIntuitionEnd`, `writeToDatabaseMCQEnd`, `writeToDatabaseOutroStart`).
+
+**What is real:** `initializeSession`, `endSession`, `bufferPoseData`, and the listed `writeToDatabase*` exports from `database.js`.
+
+**What is mocked:** Same as `pose-pipeline.test.js` (`firebase/auth`, `firebase/database`, `CurricularModule`).
+
+**Tests cover:** `_PoseData/...` ref segments include `orgId`, `gameId`, and session UUID; `set` payload for session metadata includes `sessionStartTime` as a UTC string; duplicate init is skipped; buffered frames trigger `update()` with paths containing `orgId`, `gameId`, UUID, and `frames`, and batch values contain JSON pose data plus UTC timestamps; `getBufferSize` / `flushFrameBuffer` guard (session not initialized); `loadGameDialoguesFromFirebase` path and snapshot handling; `writeToDatabasePoseAuth` (`push` to `/PoseAuthoring`); TF and MC answer batch writes; intuition / MCQ start and end, insight / pose-matching / tween / outro segments; intuition / MCQ end / outro start / end GMT string writes where applicable.
 
 ---
 

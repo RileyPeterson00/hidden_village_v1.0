@@ -6,14 +6,15 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.{js,jsx}\"",
     "lint": "eslint \"src/**/*.{js,jsx}\" --quiet",
-    "test": "jest",
-    "test:watch": "jest --watch",
+    "test": "cross-env BROWSERSLIST_IGNORE_OLD_DATA=1 jest",
+    "test:watch": "cross-env BROWSERSLIST_IGNORE_OLD_DATA=1 jest --watch",
     "dev": "parcel src/index.html",
     "build": "parcel build src/index.html --public-url ./",
     "deploy": "npm run build && firebase deploy",
     "docs": "jsdoc -c jsdoc.conf.json",
-    "test:coverage": "jest --coverage",
-    "test:verbose": "jest --verbose"
+    "test:coverage": "cross-env BROWSERSLIST_IGNORE_OLD_DATA=1 jest --coverage",
+    "test:verbose": "cross-env BROWSERSLIST_IGNORE_OLD_DATA=1 jest --verbose",
+    "test:verbose-console": "cross-env VERBOSE_TESTS=1 BROWSERSLIST_IGNORE_OLD_DATA=1 jest"
   },
   "author": "Ariel Fogel",
   "license": "MIT",
@@ -33,6 +34,7 @@
     "autoprefixer": "^10.3.6",
     "baseline-browser-mapping": "^2.10.0",
     "buffer": "^6.0.3",
+    "cross-env": "^7.0.3",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-import": "^2.24.2",
