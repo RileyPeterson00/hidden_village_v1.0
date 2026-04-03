@@ -7,6 +7,7 @@ static
 .yarn
 .DS_Store
 .env
+.env.e2e
 src/.DS_Store
 .firebase
 
