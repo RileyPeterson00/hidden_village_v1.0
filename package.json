@@ -6,8 +6,8 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.{js,jsx}\"",
     "lint": "eslint \"src/**/*.{js,jsx}\" --quiet",
-    "test": "jest",
-    "test:watch": "jest --watch",
+    "test": "cross-env BROWSERSLIST_IGNORE_OLD_DATA=1 jest",
+    "test:watch": "cross-env BROWSERSLIST_IGNORE_OLD_DATA=1 jest --watch",
     "dev": "parcel src/index.html",
     "build": "parcel build src/index.html --public-url ./",
     "deploy": "npm run build && firebase deploy",
@@ -36,6 +36,7 @@
     "autoprefixer": "^10.3.6",
     "baseline-browser-mapping": "^2.10.0",
     "buffer": "^6.0.3",
+    "cross-env": "^7.0.3",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-import": "^2.24.2",

@@ -1,6 +1,15 @@
 import { interpret } from "xstate";
 import chapterMachine from "../../../machines/chapterMachine";
 
+/**
+ * Unit tests for `chapterMachine`.
+ *
+ * These tests validate:
+ * - timed transitions: `idle -> intro.reading/outro.reading -> *.ready`
+ * - `RESET_CONTEXT` behavior for switching between intro/outro
+ * - `NEXT` behavior while dialogue arrays still have remaining entries
+ * - completion: transitioning to `done` and triggering callbacks
+ */
 describe("chapterMachine", () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -36,6 +45,7 @@ describe("chapterMachine", () => {
       isOutro: false,
     });
 
+    // `idle.after` waits 1000ms before entering `intro.reading`/`outro.reading`.
     jest.advanceTimersByTime(1000);
     expect(introService.getSnapshot().value).toEqual({ intro: "reading" });
 
@@ -68,6 +78,7 @@ describe("chapterMachine", () => {
     const introText = [{ id: 1 }, { id: 2 }];
     const service = createService({ introText }).start();
 
+    // `intro` has an `entry` action that consumes the first dialogue line up-front.
     service.send("NEXT");
 
     const state = service.getSnapshot();

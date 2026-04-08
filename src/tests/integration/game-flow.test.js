@@ -110,7 +110,7 @@ describe('GameMachine - full game loop without intervention', () => {
 
   test('ending state is final - no further transitions occur', () => {
     const service = startMachine({
-      conjectures: [{}, {}],
+      conjectures: [{}, {}, {}],
       conjectureIdxToIntervention: null,
     });
 
@@ -119,7 +119,9 @@ describe('GameMachine - full game loop without intervention', () => {
     expect(service.state.done).toBe(true);
 
     // Sending another event to a final state should not change anything
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     service.send('COMPLETE');
+    warnSpy.mockRestore();
     expect(service.state.matches('ending')).toBe(true);
     service.stop();
   });
