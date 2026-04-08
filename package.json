@@ -12,9 +12,11 @@
     "build": "parcel build src/index.html --public-url ./",
     "deploy": "npm run build && firebase deploy",
     "docs": "jsdoc -c jsdoc.conf.json",
-    "test:coverage": "cross-env BROWSERSLIST_IGNORE_OLD_DATA=1 jest --coverage",
-    "test:verbose": "cross-env BROWSERSLIST_IGNORE_OLD_DATA=1 jest --verbose",
-    "test:verbose-console": "cross-env VERBOSE_TESTS=1 BROWSERSLIST_IGNORE_OLD_DATA=1 jest"
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui"
   },
   "author": "Ariel Fogel",
   "license": "MIT",
