@@ -59,6 +59,78 @@ describe('PoseCapture', () => {
     document.body.appendChild(video);
   });
 
+  it('locateFile callback returns the CDN URL for a given file', () => {
+    render(<PoseCapture />);
+    // PoseCapture passes { locateFile } to new Holistic(). Calling it covers line 199.
+    const locateFile = Holistic.mock.calls[0][0].locateFile;
+    expect(locateFile('holistic_solution.wasm')).toBe(
+      'https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic_solution.wasm'
+    );
+  });
+
+  it('Button.create builds a PIXI container with children and registers the click handler', () => {
+    const { PixiComponent } = require('@inlet/react-pixi');
+    // PixiComponent("Button", lifecycle) is called at module-load time, so calls[0] is reliable.
+    const [name, lifecycle] = PixiComponent.mock.calls[0];
+    expect(name).toBe('Button');
+
+    const onClick = jest.fn();
+    const instance = lifecycle.create({ onClick });
+
+    // Container, Graphics, and Text should have been constructed
+    expect(global.PIXI.Container).toHaveBeenCalled();
+    expect(global.PIXI.Graphics).toHaveBeenCalled();
+    expect(global.PIXI.Text).toHaveBeenCalled();
+    // pointerup handler wired on the graphic
+    const graphic = global.PIXI.Graphics.mock.results[
+      global.PIXI.Graphics.mock.results.length - 1
+    ].value;
+    expect(graphic.on).toHaveBeenCalledWith('pointerup', onClick);
+    expect(instance).toBeDefined();
+  });
+
+  describe('captureClick countdown', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
+    it('runs the countdown, covers counter >= 0 and counter < 0 branches, then resets button', async () => {
+      const { PixiComponent } = require('@inlet/react-pixi');
+      const [, buttonLifecycle] = PixiComponent.mock.calls[0];
+
+      // Temporarily wrap applyProps to intercept captureClick (passed as onClick for the Capture button)
+      let captureClickFn = null;
+      const originalApplyProps = buttonLifecycle.applyProps;
+      buttonLifecycle.applyProps = (instance, oldProps, newProps) => {
+        if (newProps.text === 'Capture') captureClickFn = newProps.onClick;
+        originalApplyProps(instance, oldProps, newProps);
+      };
+
+      render(<PoseCapture />);
+      buttonLifecycle.applyProps = originalApplyProps; // restore immediately
+
+      expect(captureClickFn).not.toBeNull();
+
+      const mockButton = { interactive: true, buttonMode: true };
+      captureClickFn({ currentTarget: mockButton });
+
+      // 4 × 1 000 ms: counter goes 3 → 2 → 1 → 0 → -1.
+      // The first 3 ticks hit the counter >= 0 (false) branch; the 4th hits counter < 0 (true).
+      await act(async () => {
+        jest.advanceTimersByTime(4000);
+      });
+
+      // After the counter < 0 branch fires, button interactivity is restored
+      expect(mockButton.interactive).toBe(true);
+      expect(mockButton.buttonMode).toBe(true);
+    });
+  });
+
   it('initializes holistic and updates pose data on results', async () => {
     render(<PoseCapture />);
 
