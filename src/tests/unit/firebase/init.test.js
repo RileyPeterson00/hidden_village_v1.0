@@ -25,18 +25,12 @@ describe('firebase/init — happy path', () => {
   });
 });
 
-// ─── Error paths ──────────────────────────────────────────────────────────────
-// These tests use jest.isolateModules so that init.js runs fresh (with modified
-// mock behaviour) instead of hitting the already-cached module from the import above.
-
 describe('firebase/init — error paths', () => {
   test('throws (and logs) when initializeApp fails', () => {
-    // Make the NEXT call to initializeApp throw
     require('firebase/app').initializeApp.mockImplementationOnce(() => {
       throw new Error('App init failed');
     });
 
-    // init.js catches → logs → re-throws; the re-throw must propagate out
     expect(() => {
       jest.isolateModules(() => {
         require('../../../firebase/init.js');
@@ -51,14 +45,12 @@ describe('firebase/init — error paths', () => {
 
     let initExports;
     jest.isolateModules(() => {
-      // Should not throw synchronously — error is handled in .catch()
       initExports = require('../../../firebase/init.js');
     });
 
-    // app, auth, storage should still be exported correctly
     expect(initExports.app).toBeDefined();
 
-    // Flush the microtask queue so the async .catch() handler on line 47 runs
+    // Flush the microtask queue so the async .catch() handler runs
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 });

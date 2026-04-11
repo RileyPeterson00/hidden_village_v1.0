@@ -71,15 +71,7 @@ describe('getUserSettings', () => {
   });
 });
 
-// ─── waitForAuthReady — user-arrives path (lines 21-24) ─────────────────────
-// To reach lines 21-24 we need a fresh module (userId = null) where:
-//   • ensureAuth()'s onAuthStateChanged call does NOT fire → userId stays null
-//   • waitForAuthReady()'s onAuthStateChanged call DOES fire → user arrives,
-//     lines 21-24 execute, and the Promise resolves immediately.
-// mockImplementationOnce consumes the no-op for the first (ensureAuth) call;
-// the default implementation (fires FIXTURE_USER) handles the second call.
-
-describe('waitForAuthReady — user-arrives path (lines 21-24, isolated module)', () => {
+describe('waitForAuthReady — user-arrives path', () => {
   test('setUserSettings succeeds when user arrives via onAuthStateChanged inside waitForAuthReady', async () => {
     jest.useFakeTimers(); // prevents the 3 000 ms setTimeout from hanging
 
@@ -103,9 +95,7 @@ describe('waitForAuthReady — user-arrives path (lines 21-24, isolated module)'
         require('../../../firebase/userSettings.js'));
     });
 
-    // Awaiting here allows the microtask (cb delivery) to run before we inspect
     const result = await isolatedSetUserSettings({ theme: 'dark' });
-    // User arrived via onAuthStateChanged callback → userId set → set() called → true
     expect(result).toBe(true);
 
     authMock.onAuthStateChanged.mockImplementation(savedImpl);
@@ -113,14 +103,7 @@ describe('waitForAuthReady — user-arrives path (lines 21-24, isolated module)'
   });
 });
 
-// ─── waitForAuthReady — timeout fallback (lines 19-30) ───────────────────────
-// The module-level `userId` singleton is already populated from the import above,
-// so waitForAuthReady's `if (userId) return Promise.resolve(userId)` early-return
-// is always taken in the tests above.  To exercise the full new-Promise branch we
-// need a fresh module instance (userId = null) and an onAuthStateChanged mock that
-// does NOT fire its callback, so the 3 000 ms setTimeout fallback triggers instead.
-
-describe('waitForAuthReady — timeout fallback (isolated module)', () => {
+describe('waitForAuthReady — timeout fallback', () => {
   test('setUserSettings returns false when no user arrives within the timeout', async () => {
     jest.useFakeTimers();
 
@@ -132,19 +115,14 @@ describe('waitForAuthReady — timeout fallback (isolated module)', () => {
 
     let isolatedSetUserSettings;
     jest.isolateModules(() => {
-      // Fresh module: userId = null, authInitialized = false
       ({ setUserSettings: isolatedSetUserSettings } =
         require('../../../firebase/userSettings.js'));
     });
 
     const resultPromise = isolatedSetUserSettings({ theme: 'dark' });
-
-    // Advance past the 3 000 ms fallback; advanceTimersByTimeAsync flushes
-    // microtasks between each timer step (Jest 27+)
     await jest.advanceTimersByTimeAsync(3001);
 
     const result = await resultPromise;
-    // userId is still null after timeout → !userId → return false
     expect(result).toBe(false);
 
     // Restore the original auth mock so later tests are unaffected

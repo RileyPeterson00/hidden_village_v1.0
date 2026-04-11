@@ -61,7 +61,6 @@ describe('PoseCapture', () => {
 
   it('locateFile callback returns the CDN URL for a given file', () => {
     render(<PoseCapture />);
-    // PoseCapture passes { locateFile } to new Holistic(). Calling it covers line 199.
     const locateFile = Holistic.mock.calls[0][0].locateFile;
     expect(locateFile('holistic_solution.wasm')).toBe(
       'https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic_solution.wasm'
@@ -99,7 +98,7 @@ describe('PoseCapture', () => {
       jest.useRealTimers();
     });
 
-    it('runs the countdown, covers counter >= 0 and counter < 0 branches, then resets button', async () => {
+    it('runs the countdown and restores button interactivity when the counter reaches zero', async () => {
       const { PixiComponent } = require('@inlet/react-pixi');
       const [, buttonLifecycle] = PixiComponent.mock.calls[0];
 
@@ -112,20 +111,18 @@ describe('PoseCapture', () => {
       };
 
       render(<PoseCapture />);
-      buttonLifecycle.applyProps = originalApplyProps; // restore immediately
+      buttonLifecycle.applyProps = originalApplyProps;
 
       expect(captureClickFn).not.toBeNull();
 
       const mockButton = { interactive: true, buttonMode: true };
       captureClickFn({ currentTarget: mockButton });
 
-      // 4 × 1 000 ms: counter goes 3 → 2 → 1 → 0 → -1.
-      // The first 3 ticks hit the counter >= 0 (false) branch; the 4th hits counter < 0 (true).
+      // 4 ticks × 1 000 ms: counter decrements 3 → 2 → 1 → 0 → -1, triggering the reset
       await act(async () => {
         jest.advanceTimersByTime(4000);
       });
 
-      // After the counter < 0 branch fires, button interactivity is restored
       expect(mockButton.interactive).toBe(true);
       expect(mockButton.buttonMode).toBe(true);
     });

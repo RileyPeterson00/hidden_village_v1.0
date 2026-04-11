@@ -66,16 +66,8 @@ const FIXTURE_NO_POSES = JSON.stringify({
 });
 
 /**
- * Fixture with ALL optional fields absent so every `??` operator's right-hand
- * ("null" fallback) branch is exercised:
- *   - roleData.UserId absent          → line 39  ?? right branch
- *   - sessionData.DaRep absent        → line 45  ?? right branch
- *   - sessionData.Hints absent        → line 46  ?. + ?? right branches
- *   - sessionData.LatinSquareOrder    → line 47  ?? right branch
- *   - TF / MCQ fields absent          → lines 56-61 ?? right branches
- *   - poseDetails.StartGMT absent     → line 67  ?? right branch
- *   - poseDetails.Start absent        → line 68  ?? right branch
- *   - poseDetails.MatchGMT absent     → line 87  ?? right branch
+ * Fixture with ALL optional fields absent so every `??` fallback is exercised:
+ * UserId, DaRep, Hints, LatinSquareOrder, TF/MCQ fields, StartGMT, Start, MatchGMT.
  */
 const FIXTURE_SPARSE_FIELDS = JSON.stringify({
   '2024-02-01': {
@@ -146,7 +138,6 @@ describe('convertJsonToCsv', () => {
   test('data rows contain userId, role, and StartGMT from the fixture', async () => {
     const result = await convertJsonToCsv(FIXTURE_TWO_POSES, 'GameA', '2024-01-01', '2024-01-31');
     const lines = result.csvContent.split('\n');
-    // lines[0] = headers; lines[1] = first data row (Pose 1-1)
     const firstDataRow = lines[1];
     expect(firstDataRow).toContain('user-abc');
     expect(firstDataRow).toContain('student');
@@ -169,13 +160,9 @@ describe('convertJsonToCsv', () => {
       FIXTURE_SPARSE_FIELDS, 'GameB', '2024-02-01', '2024-02-28'
     );
     expect(result.success).toBe(true);
-    expect(result.rowCount).toBe(1); // Pose 2-1 is the only pose entry
+    expect(result.rowCount).toBe(1);
 
-    // Every ?? right branch produces the literal string "null" in the CSV
     const dataRow = result.csvContent.split('\n')[1];
-    // ID column: no UserId → "null"
-    // DA Rep: no DaRep → "null"
-    // UTC Time: no StartGMT → "null"
     expect(dataRow).toContain('"null"');
   });
 });
