@@ -4,47 +4,57 @@ import path from 'path';
 import fs from 'fs';
 
 /**
- * Auth setup file — runs once before any test project that depends on it.
+ * Unified auth setup — runs once before any project that depends on it.
  *
- * Signs in with the student credentials from .env.e2e, then saves:
- *   1. playwright/.auth/student.json  — localStorage + cookies (Playwright storageState)
- *   2. playwright/.auth/firebase-session.json — Firebase auth keys from sessionStorage
+ * Performs three sequential sign-ins (student, teacher, admin) and saves two
+ * files per role:
+ *   playwright/.auth/<role>.json               — storageState (cookies + localStorage)
+ *   playwright/.auth/<role>-firebase-session.json — Firebase sessionStorage keys
  *
- * WHY TWO FILES:
- *   Firebase is initialised with browserSessionPersistence (init.js), so it stores
- *   the auth token in sessionStorage — not localStorage.  Playwright's storageState
- *   only captures localStorage and cookies, so the Firebase token is lost between
- *   setup and the actual tests.  We work around this by separately saving every
- *   "firebase:*" sessionStorage key to a JSON file, then injecting them back into
- *   sessionStorage via page.addInitScript() before each page.goto() call.
+ * WHY TWO FILES PER ROLE:
+ *   Firebase uses browserSessionPersistence (init.js), storing its auth token
+ *   in sessionStorage.  Playwright's storageState only captures localStorage
+ *   and cookies, so the token is lost when a new test context starts.  We save
+ *   every "firebase:*" sessionStorage key separately and inject them back via
+ *   page.addInitScript() at the start of each authenticated test.
  *
- * If credentials are absent both files are written empty so dependent tests can
- * still be discovered and skip themselves internally.
+ * If credentials are absent for a role, empty files are written so dependent
+ *   tests can still be discovered and skip themselves via their HAS_CREDENTIALS
+ *   guard.
+ *
+ * Env vars (set in .env.e2e):
+ *   PLAYWRIGHT_TEST_EMAIL / PLAYWRIGHT_TEST_PASSWORD       — student
+ *   PLAYWRIGHT_TEACHER_EMAIL / PLAYWRIGHT_TEACHER_PASSWORD — teacher
+ *   PLAYWRIGHT_ADMIN_EMAIL / PLAYWRIGHT_ADMIN_PASSWORD     — admin
  */
 
-export const STUDENT_AUTH = path.join(process.cwd(), 'playwright/.auth/student.json');
-export const FIREBASE_SESSION = path.join(process.cwd(), 'playwright/.auth/firebase-session.json');
+// Exported paths consumed by the spec files.
+export const STUDENT_AUTH       = path.join(process.cwd(), 'playwright/.auth/student.json');
+export const FIREBASE_SESSION   = path.join(process.cwd(), 'playwright/.auth/firebase-session.json');
+export const TEACHER_AUTH       = path.join(process.cwd(), 'playwright/.auth/teacher.json');
+export const TEACHER_FIREBASE_SESSION = path.join(process.cwd(), 'playwright/.auth/teacher-firebase-session.json');
+export const ADMIN_AUTH         = path.join(process.cwd(), 'playwright/.auth/admin.json');
+export const ADMIN_FIREBASE_SESSION   = path.join(process.cwd(), 'playwright/.auth/admin-firebase-session.json');
 
-/** Ensure the directory exists before writing to it. */
-function ensureDir(/** @type {string} */ filePath) {
+/** @param {string} filePath */
+function ensureDir(filePath) {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
-setup('authenticate as student', async ({ page }) => {
-  const email = process.env.PLAYWRIGHT_TEST_EMAIL;
-  const password = process.env.PLAYWRIGHT_TEST_PASSWORD;
-
+/**
+ * Sign in and persist both storageState and Firebase sessionStorage keys.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ email: string, password: string, authPath: string, sessionPath: string, label: string }} opts
+ */
+async function authenticateAndSave(page, { email, password, authPath, sessionPath, label }) {
   if (!email || !password) {
-    // Write empty state files so dependent projects can still be discovered.
-    ensureDir(STUDENT_AUTH);
-    fs.writeFileSync(STUDENT_AUTH, JSON.stringify({ cookies: [], origins: [] }));
-    ensureDir(FIREBASE_SESSION);
-    fs.writeFileSync(FIREBASE_SESSION, JSON.stringify({}));
-    console.warn(
-      '\n[auth.setup] Credentials not found in .env.e2e — writing empty auth state.\n' +
-      '  Game-flow tests will skip themselves automatically.\n'
-    );
+    ensureDir(authPath);
+    fs.writeFileSync(authPath, JSON.stringify({ cookies: [], origins: [] }));
+    ensureDir(sessionPath);
+    fs.writeFileSync(sessionPath, JSON.stringify({}));
+    console.warn(`\n[auth.setup] No ${label} credentials — writing empty auth state.\n`);
     return;
   }
 
@@ -53,23 +63,12 @@ setup('authenticate as student', async ({ page }) => {
   await page.fill('input[type="password"]', password);
   await page.click('input[type="submit"]');
 
-  // Firebase auth redirects to "/" on success.
-  await page.waitForURL((url) => !url.pathname.includes('/signin'), {
-    timeout: 20_000,
-  });
-
-  // Wait for the PixiJS canvas to confirm the app has fully mounted.
+  await page.waitForURL((url) => !url.pathname.includes('/signin'), { timeout: 20_000 });
   await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-  // Persist cookies + localStorage.
-  ensureDir(STUDENT_AUTH);
-  await page.context().storageState({ path: STUDENT_AUTH });
+  ensureDir(authPath);
+  await page.context().storageState({ path: authPath });
 
-  // Separately persist Firebase auth keys from sessionStorage.
-  // Playwright's storageState does NOT capture sessionStorage, but Firebase
-  // uses browserSessionPersistence which stores the auth token there.
-  // We save those keys to a separate JSON file and inject them back into
-  // sessionStorage via addInitScript() at the start of each game-flow test.
   const firebaseSession = await page.evaluate(() => {
     /** @type {Record<string, string>} */
     const result = {};
@@ -82,12 +81,41 @@ setup('authenticate as student', async ({ page }) => {
     return result;
   });
 
-  ensureDir(FIREBASE_SESSION);
-  fs.writeFileSync(FIREBASE_SESSION, JSON.stringify(firebaseSession, null, 2));
+  ensureDir(sessionPath);
+  fs.writeFileSync(sessionPath, JSON.stringify(firebaseSession, null, 2));
+  console.log(`[auth.setup] ${label} auth saved (${Object.keys(firebaseSession).length} Firebase key(s))`);
+}
 
-  const tokenCount = Object.keys(firebaseSession).length;
-  console.log(
-    `[auth.setup] Auth state saved to ${STUDENT_AUTH}`,
-    `\n[auth.setup] Firebase session (${tokenCount} key(s)) saved to ${FIREBASE_SESSION}`,
-  );
+// ---------------------------------------------------------------------------
+// One setup() per role — Playwright runs them sequentially in this file.
+// ---------------------------------------------------------------------------
+
+setup('authenticate as student', async ({ page }) => {
+  await authenticateAndSave(page, {
+    email:       process.env.PLAYWRIGHT_TEST_EMAIL ?? '',
+    password:    process.env.PLAYWRIGHT_TEST_PASSWORD ?? '',
+    authPath:    STUDENT_AUTH,
+    sessionPath: FIREBASE_SESSION,
+    label:       'student',
+  });
+});
+
+setup('authenticate as teacher', async ({ page }) => {
+  await authenticateAndSave(page, {
+    email:       process.env.PLAYWRIGHT_TEACHER_EMAIL ?? '',
+    password:    process.env.PLAYWRIGHT_TEACHER_PASSWORD ?? '',
+    authPath:    TEACHER_AUTH,
+    sessionPath: TEACHER_FIREBASE_SESSION,
+    label:       'teacher',
+  });
+});
+
+setup('authenticate as admin', async ({ page }) => {
+  await authenticateAndSave(page, {
+    email:       process.env.PLAYWRIGHT_ADMIN_EMAIL ?? '',
+    password:    process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? '',
+    authPath:    ADMIN_AUTH,
+    sessionPath: ADMIN_FIREBASE_SESSION,
+    label:       'admin',
+  });
 });

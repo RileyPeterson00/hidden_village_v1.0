@@ -9,6 +9,8 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.e2e') });
 
 /** Path where auth.setup.js saves the signed-in browser state. */
 const STUDENT_AUTH = 'playwright/.auth/student.json';
+const TEACHER_AUTH = 'playwright/.auth/teacher.json';
+const ADMIN_AUTH   = 'playwright/.auth/admin.json';
 
 /**
  * Playwright configuration for Hidden Village E2E tests.
@@ -64,8 +66,13 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      // Exclude the setup file and the authenticated game-flow suite.
-      testIgnore: ['**/auth.setup.js', '**/game-flow.spec.js'],
+      // Exclude setup files and any suite that requires saved auth state.
+      testIgnore: [
+        '**/auth.setup.js',
+        '**/game-flow.spec.js',
+        '**/teacher-path.spec.js',
+        '**/admin-path.spec.js',
+      ],
     },
 
     // -----------------------------------------------------------------------
@@ -89,6 +96,26 @@ export default defineConfig({
       use: { ...devices['Desktop Firefox'] },
       testIgnore: ['**/auth.setup.js', '**/game-flow.spec.js'],
       grep: /@signin/,
+    },
+
+    // -----------------------------------------------------------------------
+    // Teacher class-management tests — reuses the shared setup project.
+    // -----------------------------------------------------------------------
+    {
+      name: 'chromium-teacher',
+      use: { ...devices['Desktop Chrome'], storageState: TEACHER_AUTH },
+      testMatch: '**/teacher-path.spec.js',
+      dependencies: ['setup'],
+    },
+
+    // -----------------------------------------------------------------------
+    // Admin account-management tests — reuses the shared setup project.
+    // -----------------------------------------------------------------------
+    {
+      name: 'chromium-admin',
+      use: { ...devices['Desktop Chrome'], storageState: ADMIN_AUTH },
+      testMatch: '**/admin-path.spec.js',
+      dependencies: ['setup'],
     },
   ],
 
