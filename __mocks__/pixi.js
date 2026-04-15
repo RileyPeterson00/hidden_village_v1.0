@@ -27,6 +27,7 @@ const PIXI = {
     beginFill: jest.fn(),
     drawRect: jest.fn(),
     endFill: jest.fn(),
+    on: jest.fn(),
   })),
   TextStyle: jest.fn(),
 };
