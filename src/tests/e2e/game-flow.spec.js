@@ -1,7 +1,13 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
-import fs from 'fs';
-import path from 'path';
+import {
+  injectFirebaseSession,
+  mockDevices,
+  sendToAllMachines,
+  clickCanvas,
+  waitForCanPlay,
+  HAS_CREDENTIALS,
+} from './helpers.js';
 
 /**
  * Authenticated student game-flow E2E tests.
@@ -36,185 +42,11 @@ import path from 'path';
  *   - PLAYWRIGHT_TEST_EMAIL and PLAYWRIGHT_TEST_PASSWORD in .env.e2e
  *   - At least one game with at least one level must exist in Firebase
  *     for the level-play and completion tests.
- */
-
-// ---------------------------------------------------------------------------
-// Firebase session injection
-//
-// Firebase is initialised with browserSessionPersistence (src/firebase/init.js),
-// which stores the auth token in sessionStorage — not localStorage.
-// Playwright's storageState only captures localStorage and cookies, so the
-// Firebase token is lost when a test browser context starts.
-//
-// auth.setup.js works around this by saving every "firebase:*" sessionStorage
-// key to playwright/.auth/firebase-session.json.  injectFirebaseSession()
-// uses page.addInitScript() to write those keys back into sessionStorage
-// before the first page.goto() so that Firebase finds its token on init.
-// ---------------------------------------------------------------------------
-
-/** @type {Record<string, string>} */
-const FIREBASE_SESSION = (() => {
-  const p = path.join(process.cwd(), 'playwright/.auth/firebase-session.json');
-  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return {}; }
-})();
-
-/**
- * Registers an init-script that restores Firebase sessionStorage keys before
- * any page JavaScript runs.  Call this ONCE per test, before page.goto().
  *
- * @param {import('@playwright/test').Page} page
+ * Shared helpers (injectFirebaseSession, mockDevices, sendToAllMachines,
+ * clickCanvas, waitForCanPlay) live in helpers.js and are also used by
+ * performance.spec.js.
  */
-async function injectFirebaseSession(page) {
-  if (Object.keys(FIREBASE_SESSION).length === 0) return;
-  await page.addInitScript((session) => {
-    for (const [key, value] of Object.entries(session)) {
-      sessionStorage.setItem(key, value);
-    }
-  }, FIREBASE_SESSION);
-}
-
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Injects a getUserMedia mock that returns a real MediaStream backed by a
- * blank canvas (video) and a silent oscillator (audio).  Must be called
- * before page.goto() so it runs before any React code.
- *
- * @param {import('@playwright/test').Page} page
- */
-async function mockDevices(page) {
-  await page.addInitScript(() => {
-    // Build a silent audio track from an oscillator so hasAudio === true.
-    let audioTrack = /** @type {MediaStreamTrack|null} */ (null);
-    try {
-      // @ts-ignore
-      const ac = new (window.AudioContext || window.webkitAudioContext)();
-      const dest = ac.createMediaStreamDestination();
-      const osc = ac.createOscillator();
-      osc.frequency.value = 1; // 1 Hz — inaudible
-      osc.connect(dest);
-      osc.start();
-      audioTrack = dest.stream.getAudioTracks()[0] ?? null;
-    } catch (_) { /* AudioContext unavailable — audio will be missing */ }
-
-    // Build a blank video track from an off-screen canvas.
-    let videoTrack = /** @type {MediaStreamTrack|null} */ (null);
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 320;
-      canvas.height = 240;
-      canvas.getContext('2d')?.fillRect(0, 0, 320, 240);
-      // @ts-ignore
-      videoTrack = canvas.captureStream?.(5)?.getVideoTracks()[0] ?? null;
-    } catch (_) { /* captureStream unavailable */ }
-
-    const tracks = /** @type {MediaStreamTrack[]} */ ([]);
-    if (videoTrack) tracks.push(videoTrack);
-    if (audioTrack) tracks.push(audioTrack);
-
-    const fakeStream = new MediaStream(tracks);
-
-    // Override mediaDevices so every getUserMedia call gets the fake stream.
-    Object.defineProperty(navigator, 'mediaDevices', {
-      writable: true,
-      configurable: true,
-      value: {
-        getUserMedia: async () => fakeStream,
-        enumerateDevices: async () => [
-          { kind: 'videoinput', deviceId: 'fake-cam', label: 'Fake Camera' },
-          { kind: 'audioinput', deviceId: 'fake-mic', label: 'Fake Mic' },
-        ],
-      },
-    });
-  });
-}
-
-/**
- * Walk the React 17 fiber tree rooted at #root and call a visitor on every
- * hook state that looks like an XState interpreter service
- * (`{ send, state, status }`).
- *
- * Returns the number of services found.
- *
- * @param {import('@playwright/test').Page} page
- * @param {string} eventType  XState event type to send (e.g. 'NEXT')
- */
-async function sendToAllMachines(page, eventType) {
-  return page.evaluate((/** @type {string} */ type) => {
-    let count = 0;
-
-    function walk(/** @type {any} */ fiber, depth = 0) {
-      if (!fiber || depth > 200) return;
-
-      // React stores hook states as a linked list on `memoizedState`.
-      let hook = fiber.memoizedState;
-      while (hook) {
-        const ms = hook.memoizedState;
-        // XState useService/useMachine stores the service in a ref:
-        // hook.memoizedState = { current: interpreter }
-        if (ms && typeof ms === 'object' && 'current' in ms) {
-          const svc = ms.current;
-          if (svc && typeof svc.send === 'function' && svc.state !== undefined) {
-            try { svc.send({ type }); count++; } catch (_) {}
-          }
-        }
-        hook = hook.next;
-      }
-
-      walk(fiber.child, depth + 1);
-      walk(fiber.sibling, depth + 1);
-    }
-
-    const root = document.getElementById('root');
-    // @ts-ignore — React 17 internal API
-    const fiber = root?._reactRootContainer?._internalRoot?.current;
-    walk(fiber);
-    return count;
-  }, eventType);
-}
-
-/**
- * Click at a position expressed as fractions of the canvas bounding box.
- *
- * @param {import('@playwright/test').Page} page
- * @param {number} relX  0–1 fraction of canvas width
- * @param {number} relY  0–1 fraction of canvas height
- */
-async function clickCanvas(page, relX, relY) {
-  const canvas = page.locator('canvas');
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error('Canvas not found');
-  await page.mouse.click(box.x + box.width * relX, box.y + box.height * relY);
-}
-
-/**
- * Wait until `canPlay` becomes true in PlayGame by polling the DOM for the
- * "Trying to initialize devices..." loading text (absence = ready).
- * Falls back after `timeout` ms regardless.
- *
- * @param {import('@playwright/test').Page} page
- * @param {number} [timeout]
- */
-async function waitForCanPlay(page, timeout = 20_000) {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    // The loading screen is rendered inside canvas — we detect it by checking
-    // whether any console log from usePoseData reports initialization complete.
-    // As a proxy: just wait for the canvas to remain visible without an error.
-    const hasError = await page.locator('text=Something went wrong').isVisible();
-    if (hasError) throw new Error('Error boundary appeared during device init');
-    await page.waitForTimeout(500);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Skip guard — if auth setup produced an empty state, skip game-flow tests.
-// ---------------------------------------------------------------------------
-const HAS_CREDENTIALS = !!(
-  process.env.PLAYWRIGHT_TEST_EMAIL && process.env.PLAYWRIGHT_TEST_PASSWORD
-);
 
 // ---------------------------------------------------------------------------
 // Scenario 1 — Sign in as student → lands on game screen (home canvas)
