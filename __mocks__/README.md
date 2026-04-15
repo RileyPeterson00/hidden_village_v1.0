@@ -12,7 +12,7 @@ Mocks in this folder are used so tests run without real services or native APIs 
 ## PIXI (`pixi.js`, `@inlet/react-pixi`, `@pixi/graphics`)
 
 - **pixi.js** – Core PIXI (Application, Container, Graphics, Text, TextStyle, Sprite). Also sets `global.PIXI` so code using `PIXI` without importing works.
-- **@inlet/react-pixi.js** – React–Pixi bindings (Stage, Container, Graphics, Text, Sprite, PixiComponent, useApp, and stubs for TextInput, Select, etc.). Renders as DOM in jsdom.
+- **@inlet/react-pixi.js** – React–Pixi bindings (Stage, Container, Graphics, Text, Sprite, PixiComponent, useApp, and stubs for TextInput, Select, etc). Renders as DOM in jsdom.
 - **@pixi/graphics.js** – Graphics constructor for code that does `new PIXIGraphics()` (e.g. Pose).
 
 To add or override a mock for a test file only, use `jest.mock('moduleName', () => require('./path/to/__mocks__/...'))` or an inline factory in that test file.

@@ -90,6 +90,29 @@ export default defineConfig({
       testIgnore: ['**/auth.setup.js', '**/game-flow.spec.js'],
       grep: /@signin/,
     },
+
+    // -----------------------------------------------------------------------
+    // Performance — FPS sampling, load timing, and CPU throttle simulation.
+    // Runs the same auth setup as chromium-auth.
+    // Execute separately so it doesn't slow down the default test run:
+    //   npx playwright test --project=performance
+    // -----------------------------------------------------------------------
+    {
+      name: 'performance',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: STUDENT_AUTH,
+        // Larger viewport gives PixiJS more canvas area to render, matching
+        // a typical classroom desktop or laptop screen.
+        viewport: { width: 1280, height: 800 },
+        // Record video for every performance test regardless of outcome so
+        // FPS drops and visual stalls are always reviewable.
+        // Other projects inherit the global 'retain-on-failure' setting.
+        video: 'on',
+      },
+      testMatch: '**/performance.spec.js',
+      dependencies: ['setup'],
+    },
   ],
 
   webServer: {

@@ -25,6 +25,12 @@ import fs from 'fs';
 export const STUDENT_AUTH = path.join(process.cwd(), 'playwright/.auth/student.json');
 export const FIREBASE_SESSION = path.join(process.cwd(), 'playwright/.auth/firebase-session.json');
 
+/**
+ * Saved after auth: { uid, orgId, databaseURL }
+ * Read by performance.spec.js to seed and clean up test game data.
+ */
+export const TEST_CONTEXT = path.join(process.cwd(), 'playwright/.auth/test-context.json');
+
 /** Ensure the directory exists before writing to it. */
 function ensureDir(/** @type {string} */ filePath) {
   const dir = path.dirname(filePath);
@@ -89,5 +95,68 @@ setup('authenticate as student', async ({ page }) => {
   console.log(
     `[auth.setup] Auth state saved to ${STUDENT_AUTH}`,
     `\n[auth.setup] Firebase session (${tokenCount} key(s)) saved to ${FIREBASE_SESSION}`,
+  );
+
+  // -------------------------------------------------------------------------
+  // Capture RTDB base URL + user orgId for performance test data seeding.
+  //
+  // Strategy:
+  //   1. Intercept the first Realtime Database HTTPS request the app makes —
+  //      its URL reveals the database base URL without requiring any env var.
+  //   2. After the home canvas is visible, read the user's primaryOrgId from
+  //      the Firebase session and a REST GET to users/{uid}.
+  //   3. Write { uid, orgId, databaseURL } to playwright/.auth/test-context.json
+  //      so performance.spec.js can seed and clean up test game data.
+  // -------------------------------------------------------------------------
+
+  /** @type {string|null} */
+  let capturedDatabaseURL = null;
+
+  page.on('request', (req) => {
+    if (capturedDatabaseURL) return;
+    const url = req.url();
+    // Firebase RTDB uses *.firebaseio.com or *.firebasedatabase.app
+    const m = url.match(/^(https:\/\/[^/]+\.(?:firebaseio\.com|firebasedatabase\.app))/);
+    if (m) capturedDatabaseURL = m[1];
+  });
+
+  // Re-navigate to trigger RTDB reads (home page calls getCurrentUserContext).
+  await page.goto('/');
+  await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+
+  // Parse uid + access token from the already-captured firebase session.
+  const sessionKey = Object.keys(firebaseSession).find((k) =>
+    k.startsWith('firebase:authUser')
+  );
+  const sessionUser = sessionKey ? JSON.parse(firebaseSession[sessionKey] || '{}') : {};
+  const uid = sessionUser.uid ?? null;
+  const accessToken = sessionUser.stsTokenManager?.accessToken ?? null;
+
+  /** @type {{ uid: string|null, orgId: string|null, databaseURL: string|null }} */
+  let testContext = { uid, orgId: null, databaseURL: capturedDatabaseURL };
+
+  if (uid && accessToken && capturedDatabaseURL) {
+    // Fetch the user record to read primaryOrgId (one REST call, no SDK needed).
+    try {
+      const userRecord = await page.evaluate(
+        async ({ dbUrl, token, userId }) => {
+          const res = await fetch(
+            `${dbUrl}/users/${userId}.json?auth=${token}`
+          );
+          return res.ok ? res.json() : null;
+        },
+        { dbUrl: capturedDatabaseURL, token: accessToken, userId: uid }
+      );
+      testContext.orgId = userRecord?.primaryOrgId ?? null;
+    } catch (err) {
+      console.warn('[auth.setup] Could not fetch orgId:', err.message);
+    }
+  }
+
+  ensureDir(TEST_CONTEXT);
+  fs.writeFileSync(TEST_CONTEXT, JSON.stringify(testContext, null, 2));
+  console.log(
+    `[auth.setup] Test context saved — uid=${testContext.uid} orgId=${testContext.orgId} ` +
+    `databaseURL=${testContext.databaseURL ? 'captured' : 'NOT captured'}`
   );
 });
