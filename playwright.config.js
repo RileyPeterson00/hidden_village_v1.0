@@ -9,6 +9,8 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.e2e') });
 
 /** Path where auth.setup.js saves the signed-in browser state. */
 const STUDENT_AUTH = 'playwright/.auth/student.json';
+const TEACHER_AUTH = 'playwright/.auth/teacher.json';
+const ADMIN_AUTH   = 'playwright/.auth/admin.json';
 
 /**
  * Playwright configuration for Hidden Village E2E tests.
@@ -89,6 +91,50 @@ export default defineConfig({
       use: { ...devices['Desktop Firefox'] },
       testIgnore: ['**/auth.setup.js', '**/game-flow.spec.js'],
       grep: /@signin/,
+    },
+
+    // -----------------------------------------------------------------------
+    // Teacher auth setup: sign in once as teacher and persist browser state.
+    // -----------------------------------------------------------------------
+    {
+      name: 'teacher-setup',
+      testMatch: '**/auth.setup.teacher.js',
+    },
+
+    // -----------------------------------------------------------------------
+    // Admin auth setup: sign in once as admin and persist browser state.
+    // -----------------------------------------------------------------------
+    {
+      name: 'admin-setup',
+      testMatch: '**/auth.setup.admin.js',
+    },
+
+    // -----------------------------------------------------------------------
+    // Teacher flow tests — requires saved teacher auth state from teacher-setup.
+    // -----------------------------------------------------------------------
+    {
+      name: 'chromium-teacher',
+      testDir: './src/tests/e2e',
+      testMatch: 'teacher-path.spec.js',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: TEACHER_AUTH,
+      },
+      dependencies: ['teacher-setup'],
+    },
+
+    // -----------------------------------------------------------------------
+    // Admin flow tests — requires saved admin auth state from admin-setup.
+    // -----------------------------------------------------------------------
+    {
+      name: 'chromium-admin',
+      testDir: './src/tests/e2e',
+      testMatch: 'admin-path.spec.js',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: ADMIN_AUTH,
+      },
+      dependencies: ['admin-setup'],
     },
 
     // -----------------------------------------------------------------------
