@@ -688,5 +688,27 @@ describe('PoseMatching logic', () => {
     expect(onComplete).not.toHaveBeenCalled();
     unmount();
   });
+
+  it('emits development debug logs when NODE_ENV is development', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => {});
+    process.env.NODE_ENV = 'development';
+
+    render(
+      <PoseMatching
+        posesToMatch={[mockRealisticTPose]}
+        tolerances={[0]}
+        poseData={mockRealisticTPose}
+        columnDimensions={makeColumnDimensions()}
+        onComplete={jest.fn()}
+        UUID={UUID}
+        gameID={gameID}
+      />
+    );
+
+    expect(debugSpy).toHaveBeenCalled();
+    debugSpy.mockRestore();
+    process.env.NODE_ENV = originalNodeEnv;
+  });
 });
 

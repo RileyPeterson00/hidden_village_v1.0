@@ -38,3 +38,24 @@ test('Latin Square produces identical outputs for given inputs', () => {
 
   expect(a.square).toEqual(b.square);
 });
+
+test('create can backtrack and still return a boolean result', () => {
+  const latin = new Latin(2);
+  const originalCreate = latin.create.bind(latin);
+
+  // Reset to a clean board and deterministic seed.
+  latin.square = [
+    [0, 0],
+    [0, 0],
+  ];
+  latin.seed = () => 0;
+
+  // Force one recursive dead-end so backtracking branch executes.
+  latin.create = (c, r) => {
+    if (c === 1 && r === 0) return false;
+    return originalCreate(c, r);
+  };
+
+  const result = latin.create(0, 0);
+  expect(typeof result).toBe('boolean');
+});
