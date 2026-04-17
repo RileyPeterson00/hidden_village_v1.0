@@ -139,5 +139,50 @@ describe("chapterMachine", () => {
     expect(state.value).toBe("done");
     expect(onOutroComplete).toHaveBeenCalledTimes(1);
   });
+
+  test("experiment ADVANCE transitions to outro.reading", () => {
+    const service = createService().start("experiment");
+    service.send("ADVANCE");
+    expect(service.getSnapshot().matches({ outro: "reading" })).toBe(true);
+  });
+
+  test("loadingNextChapter RESET_CONTEXT returns to idle and applies context", () => {
+    const service = createService().start("loadingNextChapter");
+    service.send({
+      type: "RESET_CONTEXT",
+      introText: [{ id: "i1" }],
+      outroText: [{ id: "o1" }],
+      scene: ["s1"],
+      isOutro: false,
+    });
+
+    const state = service.getSnapshot();
+    expect(state.value).toBe("idle");
+    expect(state.context.introText).toEqual([{ id: "i1" }]);
+    expect(state.context.outroText).toEqual([{ id: "o1" }]);
+  });
+
+  test("RESET_CONTEXT can override callbacks and cursorMode", () => {
+    const onIntroComplete = jest.fn();
+    const onOutroComplete = jest.fn();
+    const service = createService().start();
+
+    service.send({
+      type: "RESET_CONTEXT",
+      introText: [],
+      outroText: [],
+      scene: [],
+      isOutro: true,
+      cursorMode: true,
+      onIntroComplete,
+      onOutroComplete,
+    });
+
+    const state = service.getSnapshot();
+    expect(state.value).toBe("idle");
+    expect(state.context.cursorMode).toBe(true);
+    expect(state.context.onIntroComplete).toBe(onIntroComplete);
+    expect(state.context.onOutroComplete).toBe(onOutroComplete);
+  });
 });
 

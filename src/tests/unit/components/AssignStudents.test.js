@@ -184,4 +184,163 @@ describe('AssignStudentsModule', () => {
     fireEvent.click(screen.getByTestId('btn-BACK'));
     expect(onBack).toHaveBeenCalled();
   });
+
+  test('Admin role loads classes through getClassesInOrg', async () => {
+    mockGetCurrentUserContext.mockResolvedValue({ orgId: 'org-1', role: 'Admin' });
+    mockGetClassesInOrg.mockResolvedValue({
+      c1: { name: 'Admin Class' },
+    });
+
+    render(<AssignStudentsModule width={1000} height={700} firebaseApp={firebaseApp} onBack={jest.fn()} />);
+    await waitForLoaded();
+
+    expect(mockGetClassesInOrg).toHaveBeenCalledWith('org-1', firebaseApp);
+    expect(mockGetUserClassesInOrg).not.toHaveBeenCalled();
+    expect(screen.getByTestId('btn-Admin-Class')).toBeInTheDocument();
+  });
+
+  test('fallback current class label is shown when class context is unavailable', async () => {
+    mockGetCurrentClassContext.mockRejectedValue(new Error('no class context'));
+
+    render(<AssignStudentsModule width={1000} height={700} firebaseApp={firebaseApp} onBack={jest.fn()} />);
+    await waitForLoaded();
+
+    expect(screen.getByText('CURRENT CLASS: No class selected')).toBeInTheDocument();
+  });
+
+  test('Student role cannot pick classes and assigning selected user asks for class', async () => {
+    mockGetCurrentUserContext.mockResolvedValue({ orgId: 'org-1', role: 'Student' });
+
+    render(<AssignStudentsModule width={1000} height={700} firebaseApp={firebaseApp} onBack={jest.fn()} />);
+    await waitForLoaded();
+
+    expect(screen.queryByTestId('btn-Math')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('btn-Alice-(Student)'));
+    fireEvent.click(screen.getByTestId('btn-ASSIGN-USERS'));
+    expect(window.alert).toHaveBeenCalledWith('Please select at least one class');
+  });
+
+  test('deselecting selected class clears assigned users list', async () => {
+    mockGetClassInfo.mockImplementation(async (_org, classId) => {
+      if (classId === 'class-a') {
+        return { name: 'Math', students: { u1: true }, teachers: { 'teacher-1': {} } };
+      }
+      return { name: 'X', students: {}, teachers: {} };
+    });
+
+    render(<AssignStudentsModule width={1000} height={700} firebaseApp={firebaseApp} onBack={jest.fn()} />);
+    await waitForLoaded();
+
+    fireEvent.click(screen.getByTestId('btn-Math'));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /✗.*Alice/ })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('btn-✓-Math'));
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /✗.*Alice/ })).not.toBeInTheDocument();
+    });
+  });
+
+  test('user and assigned-user search prompts handle cancel and confirm paths', async () => {
+    mockGetClassInfo.mockImplementation(async (_org, classId) => {
+      if (classId === 'class-a') {
+        return { name: 'Math', students: { u1: true }, teachers: { 'teacher-1': {} } };
+      }
+      return { name: 'X', students: {}, teachers: {} };
+    });
+
+    render(<AssignStudentsModule width={1000} height={700} firebaseApp={firebaseApp} onBack={jest.fn()} />);
+    await waitForLoaded();
+
+    window.prompt.mockReturnValueOnce(null);
+    fireEvent.click(screen.getByTestId('btn-Type-to-search...'));
+    expect(window.prompt).toHaveBeenCalled();
+    expect(screen.getByTestId('btn-Alice-(Student)')).toBeInTheDocument();
+
+    window.prompt.mockReturnValueOnce('bob');
+    fireEvent.click(screen.getByTestId('btn-Type-to-search...'));
+    await waitFor(() => {
+      expect(screen.getByTestId('btn-Bob-(Student)')).toBeInTheDocument();
+      expect(screen.queryByTestId('btn-Alice-(Student)')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('btn-Math'));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /✗.*Alice/ })).toBeInTheDocument();
+    });
+  });
+
+  test('assignStudentsToClasses failure shows error alert', async () => {
+    mockAssignStudentsToClasses.mockRejectedValue(new Error('assign failed'));
+
+    render(<AssignStudentsModule width={1000} height={700} firebaseApp={firebaseApp} onBack={jest.fn()} />);
+    await waitForLoaded();
+
+    fireEvent.click(screen.getByTestId('btn-Alice-(Student)'));
+    fireEvent.click(screen.getByTestId('btn-Math'));
+    fireEvent.click(screen.getByTestId('btn-ASSIGN-USERS'));
+
+    await waitFor(() => {
+      expect(window.alert).toHaveBeenCalledWith('Failed to assign users: assign failed');
+      expect(screen.getByTestId('btn-ASSIGN-USERS')).toBeInTheDocument();
+    });
+  });
+
+  test('removeUserFromClass failure shows error alert', async () => {
+    mockGetClassInfo.mockImplementation(async (_org, classId) => {
+      if (classId === 'class-a') {
+        return { name: 'Math', students: { u1: true }, teachers: { 'teacher-1': {} } };
+      }
+      return { name: 'X', students: {}, teachers: {} };
+    });
+    mockRemoveUserFromClass.mockRejectedValue(new Error('remove failed'));
+
+    render(<AssignStudentsModule width={1000} height={700} firebaseApp={firebaseApp} onBack={jest.fn()} />);
+    await waitForLoaded();
+
+    fireEvent.click(screen.getByTestId('btn-Math'));
+    await waitFor(() => screen.getByRole('button', { name: /✗.*Alice/ }));
+    fireEvent.click(screen.getByRole('button', { name: /✗.*Alice/ }));
+
+    await waitFor(() => {
+      expect(window.alert).toHaveBeenCalledWith('Failed to remove user: remove failed');
+    });
+  });
+
+  test('handles initial load error by leaving loading screen', async () => {
+    mockGetCurrentUserContext.mockRejectedValue(new Error('load failed'));
+    render(<AssignStudentsModule width={1000} height={700} firebaseApp={firebaseApp} onBack={jest.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('btn-ASSIGN-USERS')).toBeInTheDocument();
+    });
+  });
+
+  test('users and classes pagination next/prev callbacks run with multi-page data', async () => {
+    const manyUsers = Array.from({ length: 8 }, (_, i) => ({
+      userId: `u${i + 1}`,
+      userName: `User ${i + 1}`,
+      userEmail: `u${i + 1}@x.com`,
+      roleInOrg: 'Student',
+    }));
+    mockGetUsersByOrganizationFromDatabase.mockResolvedValue(manyUsers);
+    mockGetUserClassesInOrg.mockResolvedValue({ a: true, b: true, c: true, d: true, e: true });
+    mockGetClassInfo.mockImplementation(async (_org, classId) => ({
+      name: `Class ${classId}`,
+      students: {},
+      teachers: { 'teacher-1': {} },
+    }));
+
+    render(<AssignStudentsModule width={800} height={250} firebaseApp={firebaseApp} onBack={jest.fn()} />);
+    await waitForLoaded();
+
+    const previousArrows = screen.getAllByTestId('btn-<');
+    const nextArrows = screen.getAllByTestId('btn->');
+
+    fireEvent.click(nextArrows[0]); // users next
+    fireEvent.click(previousArrows[0]); // users prev
+    fireEvent.click(nextArrows[1]); // classes next
+    fireEvent.click(previousArrows[1]); // classes prev
+  });
 });
