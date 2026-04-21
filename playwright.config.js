@@ -3,6 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import path from 'path';
 
+// Load Firebase config from .env (app credentials).
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 // Load test credentials from .env.e2e (never committed).
 // See .env.e2e.example for the expected shape.
 dotenv.config({ path: path.resolve(process.cwd(), '.env.e2e') });
@@ -135,6 +137,22 @@ export default defineConfig({
         storageState: ADMIN_AUTH,
       },
       dependencies: ['admin-setup'],
+    },
+
+    // -----------------------------------------------------------------------
+    // Firebase latency — onValue, get(), update(), set() timing via real SDK.
+    // Uses the student auth setup.  Execute separately:
+    //   npx playwright test --project=firebase-latency
+    // -----------------------------------------------------------------------
+    {
+      name: 'firebase-latency',
+      testDir: './src/tests/e2e',
+      testMatch: 'firebase-latency.spec.js',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: STUDENT_AUTH,
+      },
+      dependencies: ['setup'],
     },
 
     // -----------------------------------------------------------------------
