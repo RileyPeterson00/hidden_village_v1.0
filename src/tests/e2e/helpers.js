@@ -110,20 +110,61 @@ export async function mockDevices(page) {
 export async function sendToAllMachines(page, eventType) {
   return page.evaluate((/** @type {string} */ type) => {
     let count = 0;
+    const sent = new WeakSet();
+    const visitedFibers = new WeakSet();
+
+    // An interpreter exposes .send() and .state; this recognizes both plain
+    // interpreters and XState actors that wrap the same contract.
+    function isInterpreter(/** @type {any} */ candidate) {
+      return candidate
+        && typeof candidate === 'object'
+        && typeof candidate.send === 'function'
+        && candidate.state !== undefined;
+    }
+
+    // @xstate/react v1.x stores the interpreter inside useConstant, which
+    // wraps the value as ref.current = { v: interpreter }. Generic useRef
+    // hooks store it directly as ref.current = interpreter. Handle both.
+    function collectCandidates(/** @type {any} */ ms) {
+      const out = [];
+      if (!ms || typeof ms !== 'object') return out;
+      if ('current' in ms) {
+        const inner = ms.current;
+        out.push(inner);
+        if (inner && typeof inner === 'object' && 'v' in inner) {
+          out.push(inner.v);
+        }
+      }
+      return out;
+    }
 
     function walk(/** @type {any} */ fiber, depth = 0) {
-      if (!fiber || depth > 200) return;
+      if (!fiber || depth > 400 || visitedFibers.has(fiber)) return;
+      visitedFibers.add(fiber);
+
       let hook = fiber.memoizedState;
       while (hook) {
-        const ms = hook.memoizedState;
-        if (ms && typeof ms === 'object' && 'current' in ms) {
-          const svc = ms.current;
-          if (svc && typeof svc.send === 'function' && svc.state !== undefined) {
+        for (const svc of collectCandidates(hook.memoizedState)) {
+          if (isInterpreter(svc) && !sent.has(svc)) {
+            sent.add(svc);
             try { svc.send({ type }); count++; } catch (_) {}
           }
         }
         hook = hook.next;
       }
+
+      // react-pixi mounts its children in a separate reconciler; the Stage
+      // class component stores the PixiFiber root on its instance as
+      // `mountNode`, so we must descend into that root to find any hooks
+      // (including useMachine) defined inside the canvas subtree.
+      const stateNode = fiber.stateNode;
+      if (stateNode && typeof stateNode === 'object') {
+        const pixiMount = stateNode.mountNode;
+        if (pixiMount && pixiMount.current) {
+          walk(pixiMount.current, depth + 1);
+        }
+      }
+
       walk(fiber.child, depth + 1);
       walk(fiber.sibling, depth + 1);
     }
