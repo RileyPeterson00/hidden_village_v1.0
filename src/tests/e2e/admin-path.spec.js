@@ -20,18 +20,36 @@ import { sendToAllMachines, clickCanvas } from './helpers.js';
  *       page.on('dialog', ...).
  *     - State assertions check canvas visibility + absence of error boundary.
  *
- * Key button coordinates (fractions of canvas dimensions):
+ * Navigation pipeline after page.goto('/'):
+ *   StoryMachine  ready → main            via TOGGLE  (mounts PlayMenu)
+ *   PlayMenuMachine   main → admin        via ADMIN
+ *   PlayMenuMachine   admin → organizations  via ORGANIZATIONS
+ *   PlayMenuMachine   admin → addNewUser     via ADDNEWUSER
+ *   PlayMenuMachine   organizations → invites via INVITES
  *
- *   OrganizationManager:
- *     CREATE NEW ORGANIZATION → relX=0.80, relY=0.41  (x=0.65+0.15, y=0.35+0.06)
+ * Button-coordinate derivation:
+ *   Both RectButton and InputBox receive (x, y, width, height) as the
+ *   logical bounding box, but internally draw
+ *     drawRoundedRect(x, y, width * 0.4, height * 0.4).
+ *   So the actual clickable centre is
+ *     (x + width * 0.2,  y + height * 0.2).
  *
- *   NewUserModule:
- *     Email InputBox  → relX=0.50, relY=0.375  (x=0.1+0.4, y=0.3+0.075)
- *     Role InputBox   → relX=0.50, relY=0.475  (x=0.1+0.4, y=0.4+0.075)
- *     ADD NEW USER    → relX=0.23, relY=0.565  (x=0.1+0.13, y=0.5+0.065)
+ *   Centres expressed as fractions of the canvas (relX, relY):
  *
- *   UserManagementModule:
- *     CLASSES button  → relX=0.55, relY=0.92   (x=0.45+0.10, y=0.88+0.04)
+ *   OrganizationManager (CREATE NEW ORGANIZATION button):
+ *     x=W*0.65, y=H*0.35, w=W*0.3,  h=H*0.12
+ *     → relX = 0.65 + 0.3  * 0.2 = 0.71
+ *       relY = 0.35 + 0.12 * 0.2 = 0.374
+ *
+ *   NewUserModule (email InputBox):
+ *     x=W*0.1,  y=H*0.3,  w=W*0.8,  h=H*0.15
+ *     → relX = 0.1  + 0.8  * 0.2 = 0.26
+ *       relY = 0.3  + 0.15 * 0.2 = 0.33
+ *
+ *   NewUserModule (role InputBox):
+ *     x=W*0.1,  y=H*0.4,  w=W*0.8,  h=H*0.15
+ *     → relX = 0.26
+ *       relY = 0.4  + 0.15 * 0.2 = 0.43
  *
  * Prerequisites:
  *   - PLAYWRIGHT_ADMIN_EMAIL and PLAYWRIGHT_ADMIN_PASSWORD in .env.e2e
@@ -69,6 +87,49 @@ async function injectAdminSession(page) {
   }, ADMIN_FIREBASE_SESSION);
 }
 
+/**
+ * Transition StoryMachine from `ready` to `main` so that <PlayMenu> mounts.
+ * Sends TOGGLE until the walker can see a second (PlayMenu) interpreter, or
+ * until the attempt budget runs out.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function enterPlayMenu(page) {
+  // Story.js also calls send('TOGGLE') itself once auth + org data are loaded,
+  // so in many cases the state has already advanced to `main` before we reach
+  // this line. We send anyway (TOGGLE on `main` is a no-op) to cover the case
+  // where the auto-advance hasn't run yet.
+  for (let i = 0; i < 6; i++) {
+    await sendToAllMachines(page, 'TOGGLE');
+    await page.waitForTimeout(400);
+    // Once PlayMenu has mounted, a second interpreter (PlayMenuMachine) is
+    // present in the fiber tree, so any event reaches ≥ 2 services.
+    const reached = await sendToAllMachines(page, '__NOOP_PROBE__');
+    if (reached >= 2) return;
+  }
+}
+
+/**
+ * Drive PlayMenuMachine from its initial `main` state through one or more
+ * transitions, pausing between each so XState can settle and React can render
+ * the next module before the next event fires.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string[]} events
+ */
+async function navigateAdmin(page, events) {
+  for (const event of events) {
+    await sendToAllMachines(page, event);
+    await page.waitForTimeout(1_500);
+  }
+}
+
+const COORDS = {
+  createNewOrg:  { relX: 0.71, relY: 0.374 },
+  emailInputBox: { relX: 0.26, relY: 0.33  },
+  roleInputBox:  { relX: 0.26, relY: 0.43  },
+};
+
 // ---------------------------------------------------------------------------
 // Scenario 1 — Sign in as admin → lands on admin panel
 // ---------------------------------------------------------------------------
@@ -82,9 +143,8 @@ test.describe('1. sign in as admin @admin', () => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-    // Navigate into the admin panel to confirm the role gives access.
-    await sendToAllMachines(page, 'ADMIN');
-    await page.waitForTimeout(1_500);
+    await enterPlayMenu(page);
+    await navigateAdmin(page, ['ADMIN']);
 
     await expect(page.locator('canvas')).toBeVisible();
     await expect(page.getByText('Something went wrong')).not.toBeVisible();
@@ -104,11 +164,8 @@ test.describe('2. create a new organization @admin', () => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-    // PlayMenuMachine: main → admin → organizations
-    await sendToAllMachines(page, 'ADMIN');
-    await page.waitForTimeout(1_500);
-    await sendToAllMachines(page, 'ORGANIZATIONS');
-    await page.waitForTimeout(2_000);
+    await enterPlayMenu(page);
+    await navigateAdmin(page, ['ADMIN', 'ORGANIZATIONS']);
 
     // Use a timestamped name so repeated runs don't collide.
     const orgName = `E2E Org ${Date.now()}`;
@@ -124,10 +181,12 @@ test.describe('2. create a new organization @admin', () => {
       }
     });
 
-    // OrganizationManager: CREATE NEW ORGANIZATION button at relX=0.80, relY=0.41
-    // Note: handleCreateOrganization does NOT show a success alert — it silently
-    // refreshes the org list. We assert the prompt fired and the canvas is healthy.
-    await clickCanvas(page, 0.80, 0.41);
+    // OrganizationManager CREATE NEW ORGANIZATION button — see comment at the
+    // top of this file for the coordinate derivation.
+    // handleCreateOrganization does NOT show a success alert — it silently
+    // refreshes the org list, so we only assert the prompt fired and the canvas
+    // is healthy.
+    await clickCanvas(page, COORDS.createNewOrg.relX, COORDS.createNewOrg.relY);
     await page.waitForTimeout(3_000);
 
     expect(promptFired).toBe(true);
@@ -149,11 +208,8 @@ test.describe('3. create a teacher account @admin', () => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-    // PlayMenuMachine: main → admin → addNewUser
-    await sendToAllMachines(page, 'ADMIN');
-    await page.waitForTimeout(1_500);
-    await sendToAllMachines(page, 'ADDNEWUSER');
-    await page.waitForTimeout(2_000);
+    await enterPlayMenu(page);
+    await navigateAdmin(page, ['ADMIN', 'ADDNEWUSER']);
 
     let emailPromptFired = false;
     let rolePromptFired = false;
@@ -179,12 +235,10 @@ test.describe('3. create a teacher account @admin', () => {
       }
     });
 
-    // Click the email InputBox at relX=0.50, relY=0.375 to trigger the email prompt.
-    await clickCanvas(page, 0.50, 0.375);
+    await clickCanvas(page, COORDS.emailInputBox.relX, COORDS.emailInputBox.relY);
     await page.waitForTimeout(1_000);
 
-    // Click the role InputBox at relX=0.50, relY=0.475 to trigger the role prompt.
-    await clickCanvas(page, 0.50, 0.475);
+    await clickCanvas(page, COORDS.roleInputBox.relX, COORDS.roleInputBox.relY);
     await page.waitForTimeout(1_000);
 
     expect(emailPromptFired).toBe(true);
@@ -207,10 +261,8 @@ test.describe('4. create a student account @admin', () => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-    await sendToAllMachines(page, 'ADMIN');
-    await page.waitForTimeout(1_500);
-    await sendToAllMachines(page, 'ADDNEWUSER');
-    await page.waitForTimeout(2_000);
+    await enterPlayMenu(page);
+    await navigateAdmin(page, ['ADMIN', 'ADDNEWUSER']);
 
     let emailPromptFired = false;
     let rolePromptFired = false;
@@ -232,9 +284,9 @@ test.describe('4. create a student account @admin', () => {
       }
     });
 
-    await clickCanvas(page, 0.50, 0.375);
+    await clickCanvas(page, COORDS.emailInputBox.relX, COORDS.emailInputBox.relY);
     await page.waitForTimeout(1_000);
-    await clickCanvas(page, 0.50, 0.475);
+    await clickCanvas(page, COORDS.roleInputBox.relX, COORDS.roleInputBox.relY);
     await page.waitForTimeout(1_000);
 
     expect(emailPromptFired).toBe(true);
@@ -257,13 +309,8 @@ test.describe('5. manage invitations list @admin', () => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-    // PlayMenuMachine: main → admin → organizations → invites
-    await sendToAllMachines(page, 'ADMIN');
-    await page.waitForTimeout(1_500);
-    await sendToAllMachines(page, 'ORGANIZATIONS');
-    await page.waitForTimeout(2_000);
-    await sendToAllMachines(page, 'INVITES');
-    await page.waitForTimeout(1_500);
+    await enterPlayMenu(page);
+    await navigateAdmin(page, ['ADMIN', 'ORGANIZATIONS', 'INVITES']);
 
     // InviteManagementModule renders on the same canvas.
     await expect(page.locator('canvas')).toBeVisible();
@@ -288,10 +335,8 @@ test.describe('6. invalid input validation @admin', () => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-    await sendToAllMachines(page, 'ADMIN');
-    await page.waitForTimeout(1_500);
-    await sendToAllMachines(page, 'ADDNEWUSER');
-    await page.waitForTimeout(2_000);
+    await enterPlayMenu(page);
+    await navigateAdmin(page, ['ADMIN', 'ADDNEWUSER']);
 
     let validationAlertMessage = '';
 
@@ -305,9 +350,8 @@ test.describe('6. invalid input validation @admin', () => {
       }
     });
 
-    // Click the role InputBox at relX=0.50, relY=0.475.
     // NewUserModule calls sendRolePrompt() → prompt fires → invalid value → alert fires.
-    await clickCanvas(page, 0.50, 0.475);
+    await clickCanvas(page, COORDS.roleInputBox.relX, COORDS.roleInputBox.relY);
     await page.waitForTimeout(1_500);
 
     expect(validationAlertMessage).toMatch(/value not allowed/i);
