@@ -26,7 +26,7 @@ Npm package handler will install all the dependencies for the project in order t
 
 You can add new packages/dependencies to the package.json file so that they do not need to be installed everytime you open up a new repository of THV.
 
-### Run a dev server
+## Run a dev server
 To serve the app locally,in terminal, run
 ```
 npm run dev
