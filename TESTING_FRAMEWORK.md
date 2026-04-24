@@ -313,4 +313,3 @@ The three layers are all **in use**; remaining work is expansion and automation,
 ---
 
 **Document version:** 1.0 (current framework)  
-**Next review:** when CI is introduced or a major test harness change ships
