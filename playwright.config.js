@@ -17,16 +17,14 @@ const ADMIN_AUTH   = 'playwright/.auth/admin.json';
 /**
  * Playwright configuration for Hidden Village E2E tests.
  *
- * Projects:
- *   setup         — signs in once and saves browser state.
- *   chromium      — sign-in page + routing (no auth required).
- *   chromium-auth — full game-flow tests (depends on setup).
- *   firefox       — smoke-checks the @signin tests on Firefox only.
+ * Projects: setup, teacher-setup, admin-setup, chromium, chromium-auth,
+ * chromium-teacher, chromium-admin, firebase-latency, performance, firefox.
+ * See src/tests/e2e/E2E_GUIDE.md §2.
  *
  * Run:
  *   npm run test:e2e              # headless
- *   npm run test:e2e -- --headed  # visible browser
- *   npm run test:e2e -- --ui      # Playwright UI mode
+ *   npm run test:e2e:headed       # visible browser
+ *   npm run test:e2e:ui           # Playwright UI mode
  *
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -68,8 +66,14 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      // Exclude the setup file and the authenticated game-flow suite.
-      testIgnore: ['**/auth.setup.js', '**/game-flow.spec.js'],
+      // Exclude setup, game-flow (separate project), and specs that have their
+      // own projects (avoids running performance / latency twice on full suite).
+      testIgnore: [
+        '**/auth.setup.js',
+        '**/game-flow.spec.js',
+        '**/performance.spec.js',
+        '**/firebase-latency.spec.js',
+      ],
     },
 
     // -----------------------------------------------------------------------
@@ -91,7 +95,12 @@ export default defineConfig({
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testIgnore: ['**/auth.setup.js', '**/game-flow.spec.js'],
+      testIgnore: [
+        '**/auth.setup.js',
+        '**/game-flow.spec.js',
+        '**/performance.spec.js',
+        '**/firebase-latency.spec.js',
+      ],
       grep: /@signin/,
     },
 
