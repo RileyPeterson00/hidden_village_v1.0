@@ -30,7 +30,7 @@ You can add new packages/dependencies to the package.json file so that they do n
 
 Access the [v0.9 GitHub Wiki](https://github.com/IMolchanov620/hidden_village_v0.9/wiki) for detailed instructions.
 
-### Run a dev server
+## Run a dev server
 To serve the app locally,in terminal, run
 ```
 npm run dev

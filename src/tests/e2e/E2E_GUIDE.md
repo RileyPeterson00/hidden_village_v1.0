@@ -7,8 +7,8 @@
 
 ## Table of Contents
 
-1. [Quick Start](#1-quick-start)
-2. [Repository Layout](#2-repository-layout)
+1. [Quick start](#1-quick-start)
+2. [Repository layout and Playwright projects](#2-repository-layout-and-playwright-projects)
 3. [How Authentication Works](#3-how-authentication-works)
 4. [How Navigation Works (and Its Limits)](#4-how-navigation-works-and-its-limits)
 5. [Test Scenarios — What Each Suite Actually Tests](#5-test-scenarios--what-each-suite-actually-tests)
@@ -27,58 +27,109 @@
 |---|---|
 | Node.js + npm | Already in the project |
 | Playwright browsers | Run `npx playwright install` once |
-| `.env.e2e` file | Copy `.env.e2e.example` and fill in a real Firebase student account |
-| Dev server | Started automatically by Playwright, or run `npm run dev` first |
+| `.env` (repo root) | App / Firebase config — loaded by `playwright.config.js` (same as the dev server) |
+| `.env.e2e` | Copy `.env.e2e.example` — student; optional teacher and admin for those suites (see below) |
+| Dev server | Started automatically by Playwright via `webServer`, or run `npm run dev` on port `1234` first |
 
 ### `.env.e2e` (never committed)
+
+Match `.env.e2e.example` in the repo root. **Student** accounts power `auth.setup.js`, `game-flow.spec.js`, `performance.spec.js`, and `firebase-latency.spec.js`:
 
 ```
 PLAYWRIGHT_TEST_EMAIL=student@example.com
 PLAYWRIGHT_TEST_PASSWORD=yourpassword
 ```
 
-This must be a **real Firebase account** that exists in the project's database.
-The account does not need special permissions — a Student role is sufficient.
+**Teacher** and **admin** path suites are optional until you set:
+
+```
+PLAYWRIGHT_TEACHER_EMAIL=…
+PLAYWRIGHT_TEACHER_PASSWORD=…
+PLAYWRIGHT_ADMIN_EMAIL=…
+PLAYWRIGHT_ADMIN_PASSWORD=…
+```
+
+Each value must be a **real Firebase user** with the right **role** (Student, Teacher, or Admin) for that suite.
 
 ### Running the tests
 
 ```powershell
-# All tests, headless (default)
+# All Playwright projects (headless)
 npm run test:e2e
 
-# Watch the browser during the run
-npm run test:e2e -- --headed
+# Named package.json scripts
+npm run test:e2e:headed
+npm run test:e2e:ui
 
-# Interactive Playwright UI (recommended for debugging)
+# Or pass flags to the default script
+npm run test:e2e -- --headed
 npm run test:e2e -- --ui
 
 # One specific file
 npx playwright test src/tests/e2e/game-flow.spec.js
 
-# One specific test by title substring
+# One project only
+npx playwright test --project=performance
+npx playwright test --project=firebase-latency
+
+# One test by title substring
 npx playwright test --grep "LOG OUT"
 ```
 
 ---
 
-## 2. Repository Layout
+## 2. Repository layout and Playwright projects
+
+### Files under `src/tests/e2e/`
 
 ```
-src/tests/e2e/
-  auth.setup.js          ← Runs once before game-flow tests; signs in and saves tokens
-  game-flow.spec.js      ← All authenticated game-flow scenarios
-  student-journey.spec.js← Additional student journey tests
-  E2E_GUIDE.md           ← This file
+E2E_GUIDE.md
+helpers.js
 
-playwright/
-  .auth/
-    student.json         ← Playwright storageState (localStorage + cookies) — gitignored
-    firebase-session.json← Firebase sessionStorage tokens — gitignored
+# Auth setup (see playwright/.auth/ output)
+auth.setup.js
+auth.setup.teacher.js
+auth.setup.admin.js
 
-playwright.config.js     ← Playwright configuration (projects, timeout, baseURL)
-.env.e2e                 ← Test credentials — gitignored
-.env.e2e.example         ← Template for .env.e2e — committed, no real secrets
+# Specs
+student-journey.spec.js   # Sign-in + routing — no credentials (@signin; Firefox smoke)
+game-flow.spec.js         # Student game-flow (student auth)
+teacher-path.spec.js     # Teacher flows (teacher auth)
+admin-path.spec.js        # Admin / orgs / invites (admin auth)
+performance.spec.js       # FPS / load; seeds test data (student auth)
+firebase-latency.spec.js  # Real Firebase SDK timing (student auth)
 ```
+
+### `playwright/.auth/` (gitignored, generated on run)
+
+| File | Used for |
+|------|-----------|
+| `student.json` | Playwright `storageState` (cookies + local origins) for student |
+| `firebase-session.json` | `firebase:*` `sessionStorage` keys — injected before load |
+| `test-context.json` | `{ uid, orgId, databaseURL }` — see `auth.setup.js` / performance helpers |
+| `teacher.json` + `teacher-firebase-session.json` | Teacher |
+| `admin.json` + `admin-firebase-session.json` | Admin |
+
+If credentials for a role are missing, that setup may write **empty** state files; suites that need auth should skip or fail in a controlled way.
+
+### `playwright.config.js` — projects (summary)
+
+| Project | What runs |
+|---------|-----------|
+| `setup` | `auth.setup.js` (student) |
+| `teacher-setup` | `auth.setup.teacher.js` |
+| `admin-setup` | `auth.setup.admin.js` |
+| `chromium` | Everything in `e2e/` **except** setup files, `game-flow.spec.js`, `performance.spec.js`, and `firebase-latency.spec.js` (those have dedicated projects) |
+| `chromium-auth` | `game-flow.spec.js` with saved student state; depends on `setup` |
+| `chromium-teacher` | `teacher-path.spec.js`; depends on `teacher-setup` |
+| `chromium-admin` | `admin-path.spec.js`; depends on `admin-setup` |
+| `firebase-latency` | `firebase-latency.spec.js`; depends on `setup` |
+| `performance` | `performance.spec.js` (larger viewport, `video: on`); depends on `setup` |
+| `firefox` | Same ignore rules as `chromium`, **grep** `@signin` only |
+
+**Root:** `playwright.config.js`, `.env`, `.env.e2e`, `.env.e2e.example`.
+
+`performance.spec.js` and `firebase-latency.spec.js` are **not** part of the `chromium` project, so a full `npm run test:e2e` runs each of those files **once** (in their named projects).
 
 ---
 
@@ -110,14 +161,23 @@ At the start of each game-flow test, `injectFirebaseSession(page)` calls
 **before any page JavaScript runs**.  Firebase initialises, finds its token in
 `sessionStorage`, and considers the user already authenticated.
 
+Teacher and admin suites use the same idea: separate `storageState` JSON files
+and matching `*-firebase-session.json` files, loaded in `teacher-path.spec.js`
+and `admin-path.spec.js` (see those files and `auth.setup.teacher.js` /
+`auth.setup.admin.js`).
+
 ### What breaks this
 
 | Change | Impact | Fix |
 |---|---|---|
 | `browserSessionPersistence` → `browserLocalPersistence` in `init.js` | Firebase now uses **IndexedDB** (not sessionStorage). The extraction in `auth.setup.js` reads sessionStorage and will find nothing. Tests fail silently (empty firebase-session.json). | Update `auth.setup.js` to read from IndexedDB instead. See §7. |
+
 | `browserSessionPersistence` → `inMemoryPersistence` | Token is gone on every navigation. Cannot be saved at all. | Don't use inMemoryPersistence for a setup that relies on saved state. |
-| Sign-in form changes (e.g., button selector) | `auth.setup.js` uses `input[type="submit"]` to click the login button. | Update the selector in `auth.setup.js` line 54. |
+
+| Sign-in form changes (e.g., button selector) | Setup files submit with `input[type="email"]` / `password` / `input[type="submit"]`. | Update the same selectors in `auth.setup.js`, `auth.setup.teacher.js`, and `auth.setup.admin.js`. See §7. |
+
 | Test account deleted or password changed | Setup step will fail, producing empty auth files. All game-flow tests will skip. | Update `.env.e2e`. |
+
 | Firebase token TTL / refresh token revoked | Firebase access tokens expire (~1 hour) but are refreshed automatically using the refresh token stored alongside them. If the refresh token is revoked (e.g., account disabled), tests fail on auth. | Re-run the full suite to regenerate fresh tokens. |
 
 ---
@@ -170,7 +230,18 @@ See §8 for a full discussion. The short version:
 
 ## 5. Test Scenarios — What Each Suite Actually Tests
 
-### Scenario 1 — Sign in and reach home screen (`1. sign in...`)
+The **numbered scenarios** below describe **`game-flow.spec.js`** (authenticated
+student). Other files:
+
+| File | What it covers |
+|------|----------------|
+| `student-journey.spec.js` | Sign-in form, bad credentials, unauthenticated redirect to `/signin` — tag `@signin` (Firefox). |
+| `teacher-path.spec.js` | Teacher class-management flows; canvas + `sendToAllMachines`; needs teacher env. |
+| `admin-path.spec.js` | Admin org / invites / add-user style flows; needs admin env. |
+| `performance.spec.js` | Seeded game, navigation toward pose-matching, FPS — see file header. |
+| `firebase-latency.spec.js` | `onValue`, `get`, `set`, `update` timing via real SDK in page context. |
+
+### Scenario 1 — Sign in and reach home screen (`1. sign in...`) — `game-flow.spec.js`
 
 | Test | What it checks |
 |---|---|
@@ -337,12 +408,13 @@ coordinate clicks from scenarios 2–5 entirely.
 
 ### When the test account needs to be replaced
 
-1. Create a new Firebase Student account.
-2. Update `.env.e2e` with the new credentials.
-3. **Delete** `playwright/.auth/student.json` and
-   `playwright/.auth/firebase-session.json` (stale tokens will cause silent
-   auth failures).
-4. Run `npm run test:e2e` — `auth.setup.js` will regenerate both files.
+1. Create or reset the Firebase user(s) (student, and optionally teacher/admin).
+2. Update `.env.e2e` with the new values.
+3. **Delete** the generated JSON for that role so stale tokens are not reused:
+   - **Student:** `playwright/.auth/student.json`, `firebase-session.json`, and `test-context.json` (if used)
+   - **Teacher:** `playwright/.auth/teacher.json`, `teacher-firebase-session.json`
+   - **Admin:** `playwright/.auth/admin.json`, `admin-firebase-session.json`
+4. Run `npm run test:e2e` — the corresponding `auth.setup*.js` step recreates state.
 
 ---
 
@@ -472,12 +544,14 @@ and `PlayGameMachine` end-to-end.
 
 ### Auth failures (redirected to `/signin`)
 
-1. Check `playwright/.auth/firebase-session.json` — it should have at least one
-   `firebase:authUser:...` key.  If it is `{}`, auth.setup.js failed to capture
-   the token.
-2. Delete both files in `playwright/.auth/` and re-run to regenerate.
-3. Verify `.env.e2e` credentials work by signing into the app manually.
-4. Check `init.js` — if persistence mode changed, see §7.
+1. For **student** game-flow: `playwright/.auth/firebase-session.json` should
+   contain a `firebase:authUser:...` key. If it is `{}`, `auth.setup.js` did not
+   capture a session. For teacher/admin, check `teacher-firebase-session.json` /
+   `admin-firebase-session.json` similarly.
+2. Delete the **role’s** `*.json` pair (and student `test-context.json` if
+   relevant), then re-run the suite to regenerate.
+3. Confirm `.env.e2e` by signing in manually in the app.
+4. If persistence mode changed in `init.js`, see §7.
 
 ### Canvas never becomes visible
 

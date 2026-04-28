@@ -1,15 +1,28 @@
-# Tests - Quick Reference
+# Tests Quick Reference
 
 Quick guide for writing and running tests in Hidden Village.
+
+**Last reviewed:** April 24, 2026
 
 ---
 
 ## Run Tests
 
 ```bash
-npm test              # Run all tests
-npm run test:watch    # Watch mode
-npm run test:coverage # Coverage report
+# Unit + integration (Jest)
+npm test
+
+# Watch mode during development
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+
+# End-to-end (Playwright; not part of `npm test`)
+npm run test:e2e
+npm run test:e2e:headed
+npm run test:e2e:ui
+# Equivalent: npm run test:e2e -- --headed  or  -- --ui
 ```
 
 ---
@@ -18,10 +31,10 @@ npm run test:coverage # Coverage report
 
 ```
 src/tests/
-├── fixtures/         # Mock data - import these in tests
-├── unit/            # Unit tests for individual functions
-├── integration/     # Integration tests (future)
-└── e2e/            # End-to-end tests (future)
+├── fixtures/         # Reusable test data
+├── unit/             # Fast, isolated tests
+├── integration/      # Real-module interaction tests
+└── e2e/              # Playwright browser flows
 ```
 
 ---
@@ -119,10 +132,11 @@ expect(value).toBeGreaterThan(0);         // Number comparison
 
 ## Need Help?
 
-- Full documentation: `TESTING_FRAMEWORK.md` (root)
-- Fixture examples: Check `fixtures/*.js` files
-- Ask team lead for guidance
+- **Full overview:** `TESTING_FRAMEWORK.md` (repo root)
+- **Integration tests:** `src/tests/integration/README.md`
+- **E2E (Playwright, env, scenarios):** `src/tests/e2e/E2E_GUIDE.md`
+- **Fixture source:** `fixtures/*.js` and `fixtures/index.js`
 
 ---
 
-**Quick Start:** Run `npm test` to see all tests pass! ✅
+**Quick start:** `npm test` runs the full Jest suite (unit + integration). E2E: `npm run test:e2e`.
