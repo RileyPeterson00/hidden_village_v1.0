@@ -11,19 +11,26 @@ import { sendToAllMachines, clickCanvas } from './helpers.js';
  * they start already signed in as a Teacher.  Set PLAYWRIGHT_TEACHER_EMAIL +
  * PLAYWRIGHT_TEACHER_PASSWORD in .env.e2e to enable them.
  *
+ * Navigation pipeline after page.goto('/'):
+ *   StoryMachine must reach `main` (PlayMenu mounted) before sending
+ *   PlayMenuMachine events. Use enterPlayMenu() then navigatePlayMenu();
+ *   otherwise ADMIN / CLASSES may no-op or target the wrong interpreter.
+ *
  * Canvas architecture note:
  *   After sign-in the entire app UI lives inside a PixiJS <canvas> element.
  *   Playwright cannot query DOM nodes inside canvas, so:
- *     - Navigation uses sendToAllMachines() to fire XState events directly.
+ *     - Navigation uses enterPlayMenu + navigatePlayMenu + clickCanvas as needed.
  *     - Button clicks inside modules use clickCanvas() at known relative coords.
  *     - create/delete actions use window.prompt / window.alert, intercepted
  *       via page.on('dialog', ...).
  *     - State assertions check canvas visibility + absence of error boundary.
  *
- * ClassManager button coordinates (fractions of canvas dimensions):
- *   CREATE CLASS  → relX=0.80, relY=0.31  (x=0.65+0.15, y=0.25+0.06)
- *   ASSIGN GAMES  → relX=0.80, relY=0.41  (x=0.65+0.15, y=0.35+0.06)
- *   ASSIGN USERS  → relX=0.80, relY=0.51  (x=0.65+0.15, y=0.45+0.06)
+ * ClassManager button click centers (fractions of canvas dimensions):
+ *   RectButton uses draw size width*0.4 × height*0.4 of its props; click
+ *   centre = (x + width*0.2, y + height*0.2) in canvas fractions:
+ *   CREATE CLASS  → relX=0.71, relY≈0.274
+ *   ASSIGN GAMES  → relX=0.71, relY≈0.374
+ *   ASSIGN USERS  → relX=0.71, relY≈0.474
  *
  * Prerequisites:
  *   - PLAYWRIGHT_TEACHER_EMAIL and PLAYWRIGHT_TEACHER_PASSWORD in .env.e2e
@@ -45,6 +52,11 @@ const HAS_TEACHER_CREDENTIALS = !!(
   process.env.PLAYWRIGHT_TEACHER_EMAIL && process.env.PLAYWRIGHT_TEACHER_PASSWORD
 );
 
+/** Centers of ClassManager RectButton hit areas — must match RectButton.js scaling. */
+const CM_CREATE_CLASS = [0.71, 0.274];
+const CM_ASSIGN_GAMES = [0.71, 0.374];
+const CM_ASSIGN_USERS = [0.71, 0.474];
+
 /**
  * Injects the saved teacher Firebase sessionStorage keys back into the browser
  * before any page JavaScript runs.  Same workaround as injectFirebaseSession()
@@ -59,6 +71,40 @@ async function injectTeacherSession(page) {
       sessionStorage.setItem(key, value);
     }
   }, TEACHER_FIREBASE_SESSION);
+}
+
+/**
+ * Transition StoryMachine from `ready` to `main` so PlayMenu mounts.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function enterPlayMenu(page) {
+  for (let i = 0; i < 6; i++) {
+    await sendToAllMachines(page, 'TOGGLE');
+    await page.waitForTimeout(400);
+    const reached = await sendToAllMachines(page, '__NOOP_PROBE__');
+    if (reached >= 2) return;
+  }
+}
+
+/**
+ * Drive PlayMenuMachine through transitions with pauses for React to render.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string[]} events
+ */
+async function navigatePlayMenu(page, events) {
+  for (const event of events) {
+    await sendToAllMachines(page, event);
+    await page.waitForTimeout(1_500);
+  }
+}
+
+/** PlayMenu main → admin → classes, with extra settle time after CLASSES. */
+async function goToClassManager(page) {
+  await enterPlayMenu(page);
+  await navigatePlayMenu(page, ['ADMIN', 'CLASSES']);
+  await page.waitForTimeout(500);
 }
 
 // ---------------------------------------------------------------------------
@@ -90,11 +136,7 @@ test.describe('2. class manager navigation @teacher', () => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-    // PlayMenuMachine: main → admin → classes
-    await sendToAllMachines(page, 'ADMIN');
-    await page.waitForTimeout(1_500);
-    await sendToAllMachines(page, 'CLASSES');
-    await page.waitForTimeout(2_000);
+    await goToClassManager(page);
 
     await expect(page.locator('canvas')).toBeVisible();
     await expect(page.getByText('Something went wrong')).not.toBeVisible();
@@ -114,10 +156,7 @@ test.describe('3. create a new class @teacher', () => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-    await sendToAllMachines(page, 'ADMIN');
-    await page.waitForTimeout(1_500);
-    await sendToAllMachines(page, 'CLASSES');
-    await page.waitForTimeout(2_000);
+    await goToClassManager(page);
 
     // Use a timestamped name so repeated runs don't collide.
     const className = `E2E Class ${Date.now()}`;
@@ -134,8 +173,7 @@ test.describe('3. create a new class @teacher', () => {
       }
     });
 
-    // ClassManager: CREATE CLASS button at relX=0.80, relY=0.31
-    await clickCanvas(page, 0.80, 0.31);
+    await clickCanvas(page, CM_CREATE_CLASS[0], CM_CREATE_CLASS[1]);
     await page.waitForTimeout(3_000);
 
     expect(promptFired).toBe(true);
@@ -158,10 +196,7 @@ test.describe('4. view class list @teacher', () => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-    await sendToAllMachines(page, 'ADMIN');
-    await page.waitForTimeout(1_500);
-    await sendToAllMachines(page, 'CLASSES');
-    await page.waitForTimeout(2_000);
+    await goToClassManager(page);
 
     const className = `E2E List Class ${Date.now()}`;
 
@@ -172,7 +207,7 @@ test.describe('4. view class list @teacher', () => {
 
     // Create a class, then verify the canvas is still showing the class list
     // (ClassManager reloads classes after creation, so the new class appears).
-    await clickCanvas(page, 0.80, 0.31);
+    await clickCanvas(page, CM_CREATE_CLASS[0], CM_CREATE_CLASS[1]);
     await page.waitForTimeout(3_000);
 
     // Canvas must still be visible — ClassManager re-renders with updated list.
@@ -194,13 +229,9 @@ test.describe('5. assign content to class @teacher', () => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-    await sendToAllMachines(page, 'ADMIN');
-    await page.waitForTimeout(1_500);
-    await sendToAllMachines(page, 'CLASSES');
-    await page.waitForTimeout(2_000);
+    await goToClassManager(page);
 
-    // ClassManager: ASSIGN GAMES button at relX=0.80, relY=0.41
-    await clickCanvas(page, 0.80, 0.41);
+    await clickCanvas(page, CM_ASSIGN_GAMES[0], CM_ASSIGN_GAMES[1]);
     await page.waitForTimeout(2_000);
 
     // AssignContentModule replaces the main ClassManager view on the same canvas.
@@ -225,14 +256,10 @@ test.describe('6. empty class edge case @teacher', () => {
     await page.goto('/');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-    await sendToAllMachines(page, 'ADMIN');
-    await page.waitForTimeout(1_500);
-    await sendToAllMachines(page, 'CLASSES');
-    await page.waitForTimeout(2_000);
+    await goToClassManager(page);
 
-    // ClassManager: ASSIGN USERS button at relX=0.80, relY=0.51
     // The currently active class may have zero students — that is the edge case.
-    await clickCanvas(page, 0.80, 0.51);
+    await clickCanvas(page, CM_ASSIGN_USERS[0], CM_ASSIGN_USERS[1]);
     await page.waitForTimeout(2_000);
 
     // AssignStudentsModule must render without throwing.
